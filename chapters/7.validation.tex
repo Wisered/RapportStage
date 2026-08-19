@@ -1,8 +1,9 @@
 \chapter{Validation and Results}
 \label{chap:validation}
+\emergencystretch=3em\relax
 
-Chapters 5 and 6 described what the platform is built to do and how it is
-built. This chapter asks a different question, whether it actually does what
+Chapter~\ref{chap:scoring-engine} and Chapter~\ref{chap:platform} described
+what the platform is built to do and how it is built. This chapter asks a different question, whether it actually does what
 it claims, and how this was checked. I present the three layers of testing
 that support the deterministic engine and the platform built around it, walk
 through one concrete assessment profile from raw score to final score,
@@ -14,13 +15,13 @@ reader to discover on their own.
 \label{sec:validation-strategy}
 
 The validation approach follows directly from the inviolable principles
-introduced in Chapter 4 (\ref{chap:method}), in particular the requirement
+introduced in Chapter~\ref{chap:method}, in particular the requirement
 that the scoring engine be deterministic and auditable. Testing is organised
 in three layers, moving from the pure computation core outward to the full
 request path a user actually exercises.
 
 \subsection{Three layers of testing}
-\label{subsec:three-layers}
+\label{sec:validation-three-layers}
 
 The first layer tests the scoring engine in isolation, as a pure Python
 package with no I/O. The second layer tests the FastAPI backend that wraps
@@ -30,17 +31,20 @@ translation from stored, raw answers to the engine's input format.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lll@{}}
+  \begin{tabular}{@{}p{3.4cm}p{6.1cm}p{4.6cm}@{}}
     \toprule
     Layer & Scope & Location \\
     \midrule
-    Engine unit tests & Pure scoring pipeline, no I/O & \texttt{app/scoring/tests/} \\
-    Backend integration tests & FastAPI endpoints, async DB & \texttt{backend/tests/} \\
-    End-to-end bridge cross-check & DB row to \texttt{AssessmentInput} to result & \texttt{score\_test.py} \\
+    Engine unit tests & Pure scoring pipeline, no I/O &
+    \texttt{app/\allowbreak scoring/\allowbreak tests/} \\
+    Backend integration tests & FastAPI endpoints, async DB &
+    \texttt{backend/\allowbreak tests/} \\
+    End-to-end bridge cross-check & DB row to \texttt{AssessmentInput} to
+    result & \texttt{score\_test.py} \\
     \bottomrule
   \end{tabular}
   \caption{The three testing layers}
-  \label{tab:testing-layers}
+  \label{tab:validation-testing-layers}
 \end{table}
 
 \begin{figure}[htbp]
@@ -59,10 +63,11 @@ translation from stored, raw answers to the engine's input format.
         font=\footnotesize\itshape
       },
       band/.style={
-        rounded corners=2pt, thick, minimum height=0.85cm
+        draw, rounded corners=2pt, thick, minimum height=0.85cm,
+        font=\scriptsize, align=center, inner sep=4pt
       },
       guide/.style={draw=black!35, dashed, line width=0.5pt},
-      lbl/.style={font=\scriptsize, align=center}
+      marker/.style={coordinate}
     ]
 
     \node[proc]                          (n1) {HTTP\\request};
@@ -80,25 +85,25 @@ translation from stored, raw answers to the engine's input format.
     \draw[->] (n5) -- (n6);
     \draw[->] (n6) -- (n7);
 
-    \draw[guide] (n4.south west) -- ++(0,-0.9);
-    \draw[guide] (n6.south east) -- ++(0,-0.9);
-    \draw[band, draw=blue!55!black, fill=blue!8]
-      ($(n4.south west)+(0,-0.9)$) rectangle ($(n6.south east)+(0,-1.75)$);
-    \node[lbl, blue!55!black] at ($(n4.south east)!0.5!(n6.south west)+(0,-1.325)$)
+    \node[marker] (m4)  [yshift=-1.325cm] at (n4.west) {};
+    \node[marker] (m6)  [yshift=-1.325cm] at (n6.east) {};
+    \node[marker] (m2)  [yshift=-2.425cm] at (n2.west) {};
+    \node[marker] (m4b) [yshift=-2.425cm] at (n4.east) {};
+    \node[marker] (m1)  [yshift=-3.525cm] at (n1.west) {};
+    \node[marker] (m7)  [yshift=-3.525cm] at (n7.east) {};
+
+    \draw[guide] (n4.south west) -- (m4);
+    \draw[guide] (n6.south east) -- (m6);
+    \draw[guide] (n2.south west) -- (m2);
+    \draw[guide] (n4.south east) -- (m4b);
+    \draw[guide] (n1.south west) -- (m1);
+    \draw[guide] (n7.south east) -- (m7);
+
+    \node[band, fit=(m4)(m6), draw=blue!55!black, fill=blue!8, text=blue!55!black]
       {Engine unit tests};
-
-    \draw[guide] (n2.south west) -- ++(0,-2.0);
-    \draw[guide] (n4.south east) -- ++(0,-2.0);
-    \draw[band, draw=teal!60!black, fill=teal!8]
-      ($(n2.south west)+(0,-2.0)$) rectangle ($(n4.south east)+(0,-2.85)$);
-    \node[lbl, teal!60!black] at ($(n2.south east)!0.5!(n4.south west)+(0,-2.425)$)
+    \node[band, fit=(m2)(m4b), draw=teal!60!black, fill=teal!8, text=teal!60!black]
       {End-to-end bridge\\cross-check};
-
-    \draw[guide] (n1.south west) -- ++(0,-3.1);
-    \draw[guide] (n7.south east) -- ++(0,-3.1);
-    \draw[band, draw=black!55, fill=black!5]
-      ($(n1.south west)+(0,-3.1)$) rectangle ($(n7.south east)+(0,-3.95)$);
-    \node[lbl, black!55] at ($(n1.south east)!0.5!(n7.south west)+(0,-3.525)$)
+    \node[band, fit=(m1)(m7), draw=black!55, fill=black!5, text=black!55]
       {Backend integration tests};
 
   \end{tikzpicture}
@@ -109,17 +114,23 @@ translation from stored, raw answers to the engine's input format.
 The engine suite grew from 64 tests at the point of the independent audit
 (\ref{chap:scoring-engine}) to 67 after the corrections it triggered, three
 new tests specifically targeting a gap the audit had identified (see
-\ref{subsec:test-profiles}), and stands at 70 today. The backend suite,
-which exercised only the two endpoints required by the end of Sprint 0,
-\texttt{test\_health.py} and \texttt{test\_referential\_endpoint.py}, grew
+\ref{sec:validation-test-profiles}), and stands at 70 today. The backend
+suite, which exercised only the two endpoints required by the end of Sprint
+0, \texttt{test\_health.py} and \texttt{test\_referential\_endpoint.py}, grew
 alongside every backend feature landed afterward, assessments, scoring,
-authentication and access control, and now counts 68 tests.
+authentication and access control, and now counts 141 tests. This figure
+covers a wider perimeter than the engine suite above and should not be
+merged with it, three of these 141 tests are dedicated specifically to a
+privacy guarantee, that neither N/A justification text nor any personal
+identifier ever reaches the AI prompt, which Section~\ref{sec:validation-failure-modes}
+returns to.
 
 \subsection{Deterministic testing philosophy}
-\label{subsec:deterministic-philosophy}
+\label{sec:validation-deterministic-philosophy}
 
-Because the engine is deterministic by construction (principle P1, Chapter
-4), its tests can assert exact values rather than tolerance ranges. A test
+Because the engine is deterministic by construction (principle P1,
+Chapter~\ref{chap:method}), its tests can assert exact values rather than
+tolerance ranges. A test
 such as \texttt{test\_determinism}, which runs the same assessment through
 the engine twice and compares the two serialized outputs, would be
 meaningless for a component with any randomness or hidden state. This is
@@ -127,35 +138,35 @@ also why the golden scenarios described below assert precise numeric scores
 rather than approximate bounds, and why the boundary sweep test can claim
 exhaustive coverage of a parameter range rather than sampling it. This
 certainty does not extend to the AI layer, which is evaluated on different
-terms in \ref{sec:ai-evaluation}.
+terms in \ref{sec:validation-ai-evaluation}.
 
 \subsection{Test profiles built for coverage}
-\label{subsec:test-profiles}
+\label{sec:validation-test-profiles}
 
 Beyond the determinism check, the engine suite is organised around a small
 number of named scenarios chosen to exercise specific parts of the scoring
-pipeline described in Chapter 5, particularly the parts most likely to hide
+pipeline described in Chapter~\ref{chap:scoring-engine}, particularly the parts most likely to hide
 a subtle error, ordering, thresholds, and edge conditions.
 
 \begin{table}[htbp]
   \centering
-  \begin{tabular}{@{}lp{9cm}@{}}
+  \begin{tabular}{@{}p{5.6cm}p{9.4cm}@{}}
     \toprule
     Test & Purpose \\
     \midrule
-    \texttt{test\_determinism} & Same input run twice yields identical output \\
+    \texttt{test\_\allowbreak determinism} & Same input run twice yields identical output \\
     Golden scenarios (5) & End-to-end reference cases covering the full pipeline \\
-    \texttt{test\_bounds\_across\_sweep} & 20 parametrized combinations, proves the final score stays in $[0, 100]$ \\
-    \texttt{test\_evidence\_caps\_are\_strictly\_increasing} & Evidence-type caps are monotonic \\
-    \texttt{test\_golden\_na\_is\_neutral} & A N/A best practice contributes to neither numerator nor denominator \\
+    \texttt{test\_\allowbreak bounds\_\allowbreak across\_\allowbreak sweep} & 20 parametrized combinations, proves the final score stays in $[0, 100]$ \\
+    \texttt{test\_\allowbreak evidence\_\allowbreak caps\_\allowbreak are\_\allowbreak strictly\_\allowbreak increasing} & Evidence-type caps are monotonic \\
+    \texttt{test\_\allowbreak golden\_\allowbreak na\_\allowbreak is\_\allowbreak neutral} & A N/A best practice contributes to neither numerator nor denominator \\
     Loader validation tests & Missing file, malformed YAML, missing field all raise \\
-    \texttt{test\_golden\_consistency\_penalty\_triggered} & A maturity gap above threshold deducts the expected points \\
-    \texttt{test\_golden\_two\_gates\_strictest\_cap\_wins} & Two simultaneous foundational gates, the stricter cap is retained \\
-    \texttt{test\_penalty\_threshold\_is\_strict\_greater\_than} & A gap exactly at the threshold does not penalize, just above does \\
+    \texttt{test\_\allowbreak golden\_\allowbreak consistency\_\allowbreak penalty\_\allowbreak triggered} & A maturity gap above threshold deducts the expected points \\
+    \texttt{test\_\allowbreak golden\_\allowbreak two\_\allowbreak gates\_\allowbreak strictest\_\allowbreak cap\_\allowbreak wins} & Two simultaneous foundational gates, the stricter cap is retained \\
+    \texttt{test\_\allowbreak penalty\_\allowbreak threshold\_\allowbreak is\_\allowbreak strict\_\allowbreak greater\_\allowbreak than} & A gap exactly at the threshold does not penalize, just above does \\
     \bottomrule
   \end{tabular}
   \caption{Named test scenarios and what each one locks down}
-  \label{tab:test-profiles}
+  \label{tab:validation-test-profiles}
 \end{table}
 
 The last three rows were added after an independent audit of the engine
@@ -168,7 +179,7 @@ that gap without touching a single line of production code, they capture
 the pipeline's existing, correct behaviour rather than changing it.
 
 \section{Functional results}
-\label{sec:functional-results}
+\label{sec:validation-functional-results}
 
 Where Section~\ref{sec:validation-strategy} described how the platform is
 tested, this section shows what those tests actually establish, first about
@@ -176,7 +187,7 @@ the seam between storage and computation, then about the scoring pipeline
 itself through a single worked example.
 
 \subsection{API-engine cross-check}
-\label{subsec:bridge-crosscheck}
+\label{sec:validation-bridge-crosscheck}
 
 The engine suite (Chapter~\ref{chap:scoring-engine}) proves that the scoring
 pipeline is correct in isolation, given a well-formed \texttt{AssessmentInput}.
@@ -213,32 +224,37 @@ result against what calling the engine directly on the same input would
 produce, proving that the bridge introduces no distortion.
 
 \subsection{Worked example: from raw score to final score}
-\label{subsec:worked-example}
+\label{sec:validation-worked-example}
 
 The scoring pipeline applies, in order, an evidence cap, a phase-weighted
 aggregation, a foundational-gate cap, and a consistency-penalty deduction
 (Chapter~\ref{chap:scoring-engine}). Each step is unit-tested independently
-(Section~\ref{subsec:test-profiles}), but a single assessment profile that
-exercises several of them in sequence makes the cumulative effect concrete in
-a way that isolated tests do not. This is also, deliberately, the numeric
-proof that the engine audit found missing (finding H1,
-Chapter~\ref{chap:scoring-engine}), the correction added the test, this
-section reports what it actually shows.
+(Section~\ref{sec:validation-test-profiles}), but a single assessment
+profile that exercises several of them in sequence makes the cumulative
+effect concrete in a way that isolated tests do not. This is also,
+deliberately, the numeric proof that the engine audit found missing
+(finding H1, Chapter~\ref{chap:scoring-engine}), the correction added the
+test, this section reports what it actually shows. This is a separate
+illustration from the canonical gate-then-penalty example already
+introduced in Chapter~\ref{chap:scoring-engine}, raw 72, gated 65, final 60,
+it exercises the same fixed pipeline order on a different combination of
+inputs and should not be merged with it.
 
-Table~\ref{tab:worked-example} follows the \texttt{penalized} test profile
-through the pipeline. The four phase scores it produces, 75 for Prevention,
-68 for Preparedness, 75 for Response, and 36 for Recovery, average to a raw
-global score of 63 under the referential's equal 25 percent phase weighting.
-BP08, a foundational best practice, scores 0 on this profile, well below its
-40-point threshold, which triggers its foundational gate and caps the global
-score at 65. Because the raw score of 63 already sits below that cap, the
-gate is recorded as applied but does not move the number, an instructive
-edge case, a gate can fire without being the binding constraint. Three
-consistency pairs then trigger simultaneously, BP10 against BP11, BP07
-against BP08, and BP05 against BP15, each with a maturity gap of 4.0 against
-an allowed maximum of 2, each deducting 5 points. The three penalties bring
-the score down by 15 points in total, from 63 to a final global score of 48
-(48.4 before rounding), mapped to maturity level 2, Defined.
+Table~\ref{tab:validation-worked-example} follows the \texttt{penalized}
+test profile through the pipeline. The four phase scores it produces, 75
+for Prevention, 68 for Preparedness, 75 for Response, and 36 for Recovery,
+average to a raw global score of 63 under the referential's equal 25
+percent phase weighting. BP08, a foundational best practice, scores 0 on
+this profile, well below its 40-point threshold, which triggers its
+foundational gate and caps the global score at 65. Because the raw score of
+63 already sits below that cap, the gate is recorded as applied but does not
+move the number, an instructive edge case, a gate can fire without being the
+binding constraint. Three consistency pairs then trigger simultaneously,
+BP10 against BP11, BP07 against BP08, and BP05 against BP15, each with a
+maturity gap of 4.0 against an allowed maximum of 2, each deducting 5
+points. The three penalties bring the score down by 15 points in total,
+from 63 to a final global score of 48 (48.4 before rounding), mapped to
+maturity level 2, Defined.
 
 \begin{table}[htbp]
   \centering
@@ -253,7 +269,7 @@ the score down by 15 points in total, from 63 to a final global score of 48
     \bottomrule
   \end{tabular}
   \caption{Worked example: the \texttt{penalized} profile}
-  \label{tab:worked-example}
+  \label{tab:validation-worked-example}
 \end{table}
 
 This example is a useful counterpoint to a purely additive reading of the
@@ -266,18 +282,18 @@ visible mark on the final number, which is the intended, auditable
 behaviour rather than a computational surprise.
 
 \section{AI evaluation}
-\label{sec:ai-evaluation}
+\label{sec:validation-ai-evaluation}
 
 The scoring engine can be validated the way Sections~\ref{sec:validation-strategy}
-and~\ref{sec:functional-results} did it, against exact expected values, because
-it is deterministic. The local AI layer is not, and evaluating it calls for
-different terms, the reasoning behind the model choice, the guardrails put in
-place because the model cannot be trusted unsupervised, how often those
-guardrails have to intervene, and a qualitative read of what the output is
-actually worth.
+and~\ref{sec:validation-functional-results} did it, against exact expected
+values, because it is deterministic. The local AI layer is not, and
+evaluating it calls for different terms, the reasoning behind the model
+choice, the guardrails put in place because the model cannot be trusted
+unsupervised, how often those guardrails have to intervene, and a
+qualitative read of what the output is actually worth.
 
 \subsection{Model selection: qwen2.5:3b versus a 7B model}
-\label{subsec:model-selection}
+\label{sec:validation-model-selection}
 
 Ollama is configured to run \texttt{qwen2.5:3b} by default rather than a
 larger model such as \texttt{mistral:7b-instruct}, one of the candidates
@@ -286,11 +302,12 @@ originally listed for this role (\texttt{referential.yaml},
 log, inference runs on CPU inside the demo VM, where a 7B model's latency
 made the recommendations endpoint impractical, multi-minute responses
 observed informally rather than through a controlled benchmark, while
-\texttt{qwen2.5:3b} keeps generation to approximately one minute. This is
-defensible because the task given to the model is constrained rather than
-open-ended, it summarizes and enriches recommendations that the referential
-already supplies for a handful of weak best practices, it does not reason
-freely over the whole framework.
+\texttt{qwen2.5:3b} keeps generation to approximately one minute, the only
+model of the candidate set with an actually measured generation time. This
+is defensible because the task given to the model is constrained rather
+than open-ended, it summarizes and enriches recommendations that the
+referential already supplies for a handful of weak best practices, it does
+not reason freely over the whole framework.
 
 Even at roughly a minute, blocking the dashboard on generation was not
 acceptable, which is why recommendations are fetched asynchronously and
@@ -303,10 +320,10 @@ generation has to happen at all.
 
 The trade-off is left open rather than closed, the model is swapped through a
 single environment variable, and a controlled, timed comparison against a
-larger model remains future work (\ref{subsec:perspectives-future-work}).
+larger model remains future work (\ref{chap:impact}).
 
 \subsection{Failure modes and guardrails}
-\label{subsec:failure-modes}
+\label{sec:validation-failure-modes}
 
 A 3B model prompted to reference specific best-practice identifiers is not a
 reliable source of exact strings, so the AI layer is built on the assumption
@@ -327,42 +344,51 @@ fabricating a claim the model never actually made about either practice.
 Second, every normalized identifier is checked for existence against the
 loaded referential, an action citing a best practice that is not in the
 framework, such as a fabricated \texttt{BP18} on a referential that only
-defines sixteen, is discarded rather than shown.
+defines sixteen, is discarded rather than shown. This combines two of the
+three hallucination-mitigation strategies surveyed in
+Chapter~\ref{chap:state-of-the-art}, prompt grounding, anchoring generation
+to a fixed, explicitly provided context, and post-generation validation,
+treating the output as untrusted and checking it deterministically before
+it reaches the user. The third strategy surveyed there, retrieval-augmented
+generation proper, is not used here, the anchor is a fixed list rather than
+a retrieved one, since the sixteen best practices are few enough to inject
+in full rather than search over.
 
 The result is that a hallucinated identifier or a malformed response is a
 degraded response, not an incorrect one, the worst case is losing the
 AI-generated narrative for that best practice, never seeing a fabricated one.
 This existence check is scoped to the full referential rather than to the
 narrower subset of weak best practices sent in a given prompt, a distinction
-worth naming explicitly in Section~\ref{subsec:ai-quality-limitation}.
+worth naming explicitly in Section~\ref{sec:validation-ai-quality-limitation}.
 
 \subsection{Residual fallback rate}
-\label{subsec:fallback-rate}
+\label{sec:validation-fallback-rate}
 
-The guardrails in Section~\ref{subsec:failure-modes} are only as reassuring
-as they are infrequently needed, a system that falls back on every request
-would be technically safe but practically equivalent to not having an AI
-layer at all. This frequency was not tracked systematically during
-development, no instrumentation logged how often the endpoint actually
-returned \texttt{source="fallback"} across real or test invocations, so no
-rate can be reported here. The fallback path was directly observed at least
-once during testing, for the assessment discussed in
-Section~\ref{subsec:worked-example}, which returned the referential's
-static recommendations rather than an AI-generated narrative
-(Section~\ref{subsec:qualitative-ai}). One observed instance says nothing
-about frequency, but it does confirm the fallback path is exercised in
-practice and not merely a theoretical branch. This absence of a tracked rate
-is itself worth naming rather than papering over, and it points to concrete
-follow-up work, instrumenting the recommendations endpoint to log its own
-degradation rate would turn this qualitative observation into a measurable
-one. Once a network misconfiguration between the demo VM and the host
-running Ollama was diagnosed and corrected, a successful AI-generated
-response was also obtained on the same profile, confirming that both the
-fallback path and the AI path are exercised in practice rather than one
-being purely theoretical (Section~\ref{subsec:qualitative-ai}).
+The guardrails in Section~\ref{sec:validation-failure-modes} are only as
+reassuring as they are infrequently needed, a system that falls back on
+every request would be technically safe but practically equivalent to not
+having an AI layer at all. This frequency was not tracked systematically
+during development, no instrumentation logged how often the endpoint
+actually returned \texttt{source="fallback"} across real or test
+invocations, so no rate can be reported here. The fallback path was
+directly observed at least once during testing, for the assessment
+discussed in Section~\ref{sec:validation-worked-example}, which returned
+the referential's static recommendations rather than an AI-generated
+narrative (Section~\ref{sec:validation-qualitative-ai}). One observed
+instance says nothing about frequency, but it does confirm the fallback
+path is exercised in practice and not merely a theoretical branch. This
+absence of a tracked rate is itself worth naming rather than papering over,
+and it points to concrete follow-up work, instrumenting the recommendations
+endpoint to log its own degradation rate would turn this qualitative
+observation into a measurable one. Once a network misconfiguration between
+the demo VM and the host running Ollama was diagnosed and corrected, a
+successful AI-generated response was also obtained on the same profile,
+confirming that both the fallback path and the AI path are exercised in
+practice rather than one being purely theoretical
+(Section~\ref{sec:validation-qualitative-ai}).
 
 \subsection{Qualitative assessment of recommendations}
-\label{subsec:qualitative-ai}
+\label{sec:validation-qualitative-ai}
 
 The referential's static text is a fixed sentence per best practice,
 independent of how the organization actually answered
@@ -376,15 +402,15 @@ answered rather than the generic text alone
 (\texttt{ai\_module\_scope.downstream\_responsibilities},
 \texttt{referential.yaml}).
 
-Table~\ref{tab:recommendation-comparison} compares both outputs on the same
-\texttt{penalized} profile discussed throughout this chapter, static referential
-text against the AI-generated narrative for the same three priority best
-practices, BP08, BP11, and BP15.
+Table~\ref{tab:validation-recommendation-comparison} compares both outputs
+on the same \texttt{penalized} profile discussed throughout this chapter,
+static referential text against the AI-generated narrative for the same
+three priority best practices, BP08, BP11, and BP15.
 
 \begin{table}[htbp]
   \centering
   \small
-  \begin{tabular}{@{}p{1.8cm}p{7cm}p{7cm}@{}}
+  \begin{tabular}{@{}p{1.6cm}p{6.85cm}p{6.85cm}@{}}
     \toprule
     Field & Static (referential fallback) & AI-generated (\texttt{qwen2.5:3b}) \\
     \midrule
@@ -428,7 +454,7 @@ practices, BP08, BP11, and BP15.
   \end{tabular}
   \caption{Static referential text against AI-generated narrative, same
   profile, same three best practices}
-  \label{tab:recommendation-comparison}
+  \label{tab:validation-recommendation-comparison}
 \end{table}
 
 The comparison is more modest than the stated ambition. For all three
@@ -442,21 +468,21 @@ addition, but a generic one, the justification for BP08 or BP11 would read
 just as naturally attached to a different weak best practice, it is not
 visibly grounded in this organization's specific pattern of failure, three
 triggered consistency penalties on top of one marginal foundational gate
-(\ref{subsec:worked-example}).
+(\ref{sec:validation-worked-example}).
 
 The executive summary shows a comparable trade, the AI version drops the
 precise 48.4 score present in the static text in favour of a looser
 paraphrase, "scores averaging at level 2", which is imprecise in a way the
-static text is not, the final score is not a simple average, it results from
-the gate and penalty mechanism described in
-Section~\ref{subsec:worked-example}. No identifier was fabricated and no
-best practice outside the referential's sixteen was cited in this instance,
-so the guardrails held, but holding the guardrails and adding genuine
-analytical value are two different bars, and on this single example the
-output clears the first more convincingly than the second.
+static text is not, the final score is not a simple average, it results
+from the gate and penalty mechanism described in
+Section~\ref{sec:validation-worked-example}. No identifier was fabricated
+and no best practice outside the referential's sixteen was cited in this
+instance, so the guardrails held, but holding the guardrails and adding
+genuine analytical value are two different bars, and on this single
+example the output clears the first more convincingly than the second.
 
 \section{Limitations}
-\label{sec:limitations}
+\label{sec:validation-limitations}
 
 The guardrails and cross-checks described in the previous sections make the
 platform trustworthy within a defined scope. They do not make the underlying
@@ -465,7 +491,7 @@ rather than leaving for a reader to find, because each one bears directly on
 how much weight a result from this tool should be given.
 
 \subsection{Self-assessment is inherently declarative}
-\label{subsec:declarative-limitation}
+\label{sec:validation-declarative-limitation}
 
 Every score the platform produces ultimately rests on what a respondent
 chooses to answer. Nothing in the data model requires, or is able to require,
@@ -474,14 +500,15 @@ the organization's practice rather than the respondent's understanding of it,
 or their incentive to present it favourably. This is not a flaw specific to
 this implementation, it is a property of self-assessment as a method, shared
 with essentially every maturity framework that does not involve an external
-auditor collecting evidence directly. The platform inherits it rather than
-solves it, and the two mitigations built against it, evidence caps and the
-consistency penalties, are best understood as bounding the damage a purely
-declarative answer can do to the score, not as removing the underlying
-dependency on honest, informed self-reporting.
+auditor collecting evidence directly \cite{isaca_cmmi_cybermaturity,
+cisacrr}. The platform inherits it rather than solves it, and the two
+mitigations built against it, evidence caps and the consistency penalties,
+are best understood as bounding the damage a purely declarative answer can
+do to the score, not as removing the underlying dependency on honest,
+informed self-reporting.
 
 \subsection{The evidence cap mitigates declarativeness only partially}
-\label{subsec:evidence-cap-limitation}
+\label{sec:validation-evidence-cap-limitation}
 
 The evidence-type mechanism (\ref{chap:scoring-engine}) caps a declared
 maturity level according to the strongest evidence category the respondent
@@ -497,7 +524,7 @@ verification step that would catch this. The cap changes the shape of the
 incentive to inflate a score, it does not remove it.
 
 \subsection{No inter-rater reliability study}
-\label{subsec:interrater-limitation}
+\label{sec:validation-interrater-limitation}
 
 The scoring engine's determinism guarantees that the same answers always
 produce the same score (\ref{chap:scoring-engine}). It says nothing about
@@ -511,32 +538,32 @@ overstated. This is a natural extension for validating the methodology
 further, not a defect in what was built during the internship.
 
 \subsection{AI output quality not formally measured beyond anchoring constraints}
-\label{subsec:ai-quality-limitation}
+\label{sec:validation-ai-quality-limitation}
 
-Section~\ref{sec:ai-evaluation} established that the AI layer cannot corrupt
-a score and cannot cite a best practice outside the referential, both
-verified properties. That second guarantee is narrower than it first
-appears, it checks membership in the sixteen-best-practice referential as a
-whole, not membership in the smaller set of weak best practices actually
-sent to the model for a given assessment (\ref{subsec:failure-modes}). A
-real but contextually irrelevant identifier would currently pass this check
-undetected, a gap that stops short of a hallucinated global score or a
-fabricated best practice, but is narrower than the guarantee as informally
-described.
+Section~\ref{sec:validation-ai-evaluation} established that the AI layer
+cannot corrupt a score and cannot cite a best practice outside the
+referential, both verified properties. That second guarantee is narrower
+than it first appears, it checks membership in the sixteen-best-practice
+referential as a whole, not membership in the smaller set of weak best
+practices actually sent to the model for a given assessment
+(\ref{sec:validation-failure-modes}). A real but contextually irrelevant
+identifier would currently pass this check undetected, a gap that stops
+short of a hallucinated global score or a fabricated best practice, but is
+narrower than the guarantee as informally described.
 
 Neither guarantee says anything about whether the generated narrative is
 actually good advice, whether the prioritization across weak best practices
 is sound, whether the contextualization beyond the static fallback text is
 genuinely more useful to a reader than the fallback would have been on its
-own. The single worked comparison in Section~\ref{subsec:qualitative-ai}
+own. The single worked comparison in Section~\ref{sec:validation-qualitative-ai}
 suggests the current output leans closer to paraphrase than to genuine
 contextualization, but one example is an illustration, not a formal
 evaluation. Evaluating that properly would require either a domain expert
 scoring a larger sample of generated recommendations against some rubric, or
 feedback from someone who used the tool in a real advisory context, neither
-of which was carried out. What Section~\ref{sec:ai-evaluation} demonstrates
-is that the AI layer is safe to expose, not that its output has been shown
-to be good, and the two claims should not be conflated.
+of which was carried out. What Section~\ref{sec:validation-ai-evaluation}
+demonstrates is that the AI layer is safe to expose, not that its output has
+been shown to be good, and the two claims should not be conflated.
 
 Taken together, these four limitations describe the boundary of what this
 internship validated, and what it did not have the time or the setting to
