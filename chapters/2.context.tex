@@ -1,0 +1,258 @@
+\chapter{Economic, Regulatory and Methodological Context}
+\label{chap:context}
+
+This chapter sets out the context in which the project takes shape. It first
+describes cyber crises as a growing concern for European organisations, then
+examines how the NIS2 Directive shapes the regulatory expectations that apply
+to crisis preparedness, and how the ENISA \emph{Best Practices for Cyber
+Crisis Management} framework responds to that expectation. From there, the
+chapter identifies the gap between what this framework prescribes and what
+organisations can currently measure, and closes with the precise problem
+statement addressed by this thesis. Existing tools and research addressing
+comparable problems are reviewed separately in \ref{chap:state-of-the-art}.
+
+\section{The cyber crisis landscape}
+\label{sec:crisis-landscape}
+
+\subsection{A growing concern}
+
+Cyber incidents have moved from an operational nuisance to a standing concern
+for European organisations of all sizes.
+% TODO: optionally add a citable figure here if you have one you can verify
+%   directly at the source, the paragraph reads fine without one (Ch.3's
+%   verification notes dropped a similar unconfirmed statistic rather than
+%   force one in, see REF11 in verification-references-chapitre3.md).
+Across the sector, the question organisations ask is shifting accordingly,
+from whether a serious incident will occur to how well they are able to
+respond when it does.
+
+\subsection{Cybersecurity and crisis management: two distinct capabilities}
+
+This shift in framing separates two related but distinct concerns.
+Cybersecurity, in its usual sense, is largely about reducing the likelihood
+and the technical impact of an incident, through system hardening, intrusion
+monitoring and vulnerability management. Crisis management is a different
+capability. It is the organisation's ability to make timely decisions with
+incomplete information, coordinate stakeholders across technical,
+operational and strategic levels, and communicate under pressure, once an
+incident has escalated into an event that threatens the organisation's
+ability to operate. A well-secured organisation can still handle a crisis
+poorly, and a mature crisis management capacity can limit the damage of an
+incident that prevention failed to stop.
+
+This distinction is more than a semantic one. The referential underpinning
+this project, presented in detail in \ref{chap:scoring-engine}, treats two
+dimensions as cutting across all four phases of crisis management:
+decision-making under uncertainty, and an all-hazards approach that accounts
+for physical, third-party and human-failure scenarios alongside cyber-native
+threats. Both point toward the same conclusion. Crisis management calls for
+a maturity assessment distinct from a general cybersecurity posture
+assessment, one that this thesis sets out to build.
+
+Increasing regulatory attention reflects this same shift. The following
+section examines how the NIS2 Directive translates this concern into a set
+of operational obligations.
+
+\section{The NIS2 Directive and its operational implications}
+\label{sec:nis2}
+
+\subsection{Scope and obligations}
+
+The pressure examined in \ref{sec:crisis-landscape} increasingly takes a
+regulatory form. The NIS2 Directive extends the scope and depth of
+cybersecurity obligations for organisations operating in sectors deemed
+essential or important to the Union's economy and society
+\cite{nis2_directive_2022}.
+
+Among the obligations NIS2 introduces, crisis management sits alongside more
+familiar requirements such as incident handling and business continuity
+\cite{nis2_directive_2022}.
+% TODO(fact): optional. If you want to cite a specific article/paragraph
+%   (commonly associated with Article 21) rather than the directive as a
+%   whole, confirm the exact reference first. Chapter 3 only cites the
+%   directive generically for comparable claims, so this level of detail is
+%   not required to stay consistent with the rest of the thesis.
+This is what gives the project its regulatory anchor. Crisis management is
+not an optional maturity dimension an organisation may choose to develop on
+its own schedule, it is one NIS2 asks regulated entities to be able to
+demonstrate.
+
+\subsection{What demonstrating maturity requires}
+
+Demonstrating this capability calls for more than a policy document kept on
+a shelf. Regulators and auditors increasingly expect evidence, documented
+processes, tested plans, traceable exercises, rather than declarative
+claims of readiness. Entities are told what they are expected to
+demonstrate, without being given a way to measure how close they currently
+are to that standard.
+
+The next section examines how the ENISA \emph{Best Practices for Cyber
+Crisis Management} framework addresses what organisations are expected to
+put in place \cite{enisa_crisis_mgmt_2024}. Section~\ref{sec:gap} then turns
+to what is still missing, a way to measure where an organisation currently
+stands against it.
+
+\section{The ENISA \emph{Best Practices for Cyber Crisis Management} framework}
+\label{sec:enisa-framework}
+
+\subsection{Structure of the framework}
+
+The regulatory pressure examined in \ref{sec:nis2} calls for an operational
+reference specific to crisis management, rather than cybersecurity in
+general. ENISA answered this need in February 2024 with the \emph{Best
+Practices for Cyber Crisis Management} study \cite{enisa_crisis_mgmt_2024},
+a document aimed squarely at the discipline described in
+\ref{sec:crisis-landscape}.
+
+The framework organises cyber crisis management into four phases,
+Prevention, Preparedness, Response and Recovery, each covering a distinct
+moment in the life of a crisis rather than a distinct technical domain.
+Figure~\ref{fig:enisa-phases} summarises this structure as encoded in the
+referential built for this project (its full construction is detailed in
+\ref{chap:scoring-engine}): each phase carries an equal 25\% weight in the
+resulting maturity score, regardless of how many best practices it
+contains. Sixteen best practices are distributed unevenly across the four
+phases, from three in Prevention to nine in Preparedness, reflecting the
+fact that most of what determines crisis readiness is decided before a
+crisis starts, not during it.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    phase/.style={
+      draw, thick, rounded corners, minimum width=3.1cm, minimum height=1.5cm,
+      align=center, font=\sffamily\small
+    },
+    lbl/.style={font=\sffamily\scriptsize, align=center},
+    arr/.style={-{Stealth[length=2.5mm]}, thick}
+  ]
+
+  \node[phase] (prev) at (0, 3.6) {Prevention};
+  \node[phase] (prep) at (3.6, 0) {Preparedness};
+  \node[phase] (resp) at (0, -3.6) {Response};
+  \node[phase] (recv) at (-3.6, 0) {Recovery};
+
+  \node[lbl, above=1mm of prev] {25\% (3 BPs)};
+  \node[lbl, right=1mm of prep] {25\% (9 BPs)};
+  \node[lbl, below=1mm of resp] {25\% (2 BPs)};
+  \node[lbl, left=1mm of recv] {25\% (2 BPs)};
+
+  \draw[arr] (prev) to[bend left=18] (prep);
+  \draw[arr] (prep) to[bend left=18] (resp);
+  \draw[arr] (resp) to[bend left=18] (recv);
+  \draw[arr] (recv) to[bend left=18] (prev);
+
+  \node[lbl, font=\sffamily\footnotesize\itshape] at (0,0)
+    {Cyber crisis\\management cycle};
+
+  \end{tikzpicture}
+  \caption{The four phases of the ENISA cyber crisis management framework, each normalised to an equal 25\% weight in the global maturity score regardless of the number of best practices it contains (source: referential.yaml, derived from \cite{enisa_crisis_mgmt_2024})}
+  \label{fig:enisa-phases}
+\end{figure}
+
+\subsection{Foundational best practices}
+
+Within this structure, four best practices are treated as foundational,
+BP04, BP07, BP08 and BP12, covering respectively governance and the crisis
+coordinator role, allocation of roles and responsibilities, escalation
+criteria, and communication strategy. The referential built for this
+project enforces this distinction directly: an organisation cannot be rated
+highly mature overall if any of these four best practices scores too low,
+regardless of how well the remaining twelve perform (the mechanism is
+detailed in \ref{chap:scoring-engine}).
+% TODO(fact): if you want to explicitly name or contrast NIS2's own
+%   national-level coordination provisions here, confirm the exact article
+%   first (contexte-memoire flags Art. 9 as a possibility, unconfirmed). The
+%   sentence below deliberately stays at a level that does not require that
+%   confirmation.
+The crisis coordinator introduced by BP04 is an internal governance role
+within the organisation being assessed, distinct from any coordination
+mechanism NIS2 may establish at Member State level.
+
+Framed this way, the ENISA framework is thorough and directly relevant to
+the regulatory context described above, but it remains descriptive. It
+specifies which best practices an organisation should have in place,
+without offering a scale, an evidence standard, or a way to turn sixteen
+qualitative assessments into a single defensible score. This is the gap the
+next section describes in detail.
+
+\section{The gap addressed by this project}
+\label{sec:gap}
+
+\subsection{A specific, identifiable gap}
+
+The previous section closed on a specific limitation: ENISA specifies what
+good crisis management should look like, without specifying how to measure
+it. Generic cybersecurity maturity tools do not fill this limitation
+either, they treat crisis management as one dimension among many rather
+than as a discipline in its own right, and none of them maps natively to
+the ENISA framework or to NIS2, a point examined in detail in
+\ref{chap:state-of-the-art}. What remains, once the existing landscape is
+set aside, is a specific and identifiable gap: an organisation, or a
+consultant working with one, that wants to assess crisis-management
+maturity against the reference EU-level framework has no purpose-built
+instrument to do so.
+
+\subsection{Why it matters, for consultants and clients alike}
+
+This gap matters from two converging angles. On the consulting side, a
+crisis-readiness conversation with a client currently opens with generic
+checklists or with a consultant's own judgement, neither of which produces
+a result the client can later audit or compare across engagements. What is
+missing is a quick, defensible starting point, quick enough to fit an
+early-stage engagement, defensible enough to withstand scrutiny of how the
+result was produced.
+
+On the client side, the regulatory pressure examined in \ref{sec:nis2}
+creates a mirrored need. An organisation that must be able to demonstrate
+crisis-management maturity requires something more structured than a
+self-declared statement, without the cost and lead time of a full external
+audit at every stage of its NIS2 compliance journey.
+
+Both angles converge on the same requirement, a way to turn the sixteen
+ENISA best practices into an evidence-grounded, auditable score. The
+following section states this requirement as the precise problem this
+thesis addresses.
+
+\section{Problem statement}
+\label{sec:problem-statement}
+
+The chapter can now be summarised into a single problem. Organisations
+subject to NIS2 are expected to demonstrate crisis-management maturity
+against the ENISA \emph{Best Practices for Cyber Crisis Management}
+framework (\ref{sec:enisa-framework}), but that framework describes what
+good practice looks like without providing a way to measure it
+(\ref{sec:gap}). Consultants and client organisations alike therefore need
+an instrument that turns the framework's sixteen best practices into a
+maturity score that is fast to produce, grounded in evidence rather than
+declarative claims, and able to hold up when a client's own governance and
+security leadership examine how it was produced.
+
+Three constraints follow directly from this framing, and shape everything
+the rest of this thesis builds. Regulatory pressure means the result must
+survive scrutiny, not just sound plausible in conversation: a client's
+governance and security leadership, not only the consultant presenting it,
+must be able to trace every score back to the evidence and the rule that
+produced it (\ref{sec:nis2}). Technical fidelity means the instrument must
+stay grounded in the ENISA framework itself rather than in an ad hoc scale
+invented for convenience, the referential, not the tool, has to remain the
+source of truth (\ref{sec:enisa-framework}). Methodological accessibility
+means the instrument must be usable by a consultant leading a client
+conversation, not only by someone with deep prior expertise in the ENISA
+text, which rules out an assessment that requires extensive training to
+administer or interpret.
+
+Meeting these constraints requires, at minimum, three outcomes: a scoring
+method that is deterministic and repeatable across assessments, a bridge
+that maps assessment answers into the framework without hardcoding its
+content into whatever tool implements it, and a way to surface the
+resulting score and its underlying evidence to both the person answering
+the assessment and the person relying on its result. How these outcomes are
+achieved, through which principles, architecture and implementation
+choices, is the subject of \ref{chap:method}, \ref{chap:scoring-engine} and
+\ref{chap:platform}.
+
+Before turning to how this problem is addressed, it is worth situating it
+against what already exists. Existing maturity tools, crisis-management
+research and the constraints of LLM-based augmentation are reviewed in
+\ref{chap:state-of-the-art}.

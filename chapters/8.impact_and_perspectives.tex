@@ -1,0 +1,91 @@
+\chapter{Impact, Value, and Perspectives}
+\label{chap:impact}
+
+Chapter~\ref{chap:validation} showed that the platform performs as intended: the scoring engine is correct and audited, and the AI layer produces recommendations judged useful by external reviewers. This chapter steps back from that validation to ask a different question, what the resulting tool is actually worth, to Wavestone, to the client organisations it targets, and to the broader question of how LLMs can be used responsibly in a sensitive domain, before closing on the directions left open for a project delivered within the bounds of a single internship.
+
+\section{Value for the consulting practice}
+\label{sec:impact-consulting}
+
+Having established in Chapter~\ref{chap:validation} that the platform works as intended, this section turns to what it is worth to the practice that commissioned it. The value described here follows three related lines: a more defensible starting point for client conversations, the time and consistency gained from a repeatable instrument, and a shared vocabulary between consultant and client.
+
+\subsection{A defensible starting point for client conversations}
+\label{sec:impact-consulting-starting-point}
+
+Before this project, assessing a client's crisis management maturity relied almost entirely on the individual consultant's experience and on open-ended qualitative discussion, with no structured, framework-anchored starting point to work from. The platform addresses this directly: a self-assessment grounded in the ENISA best practices, discussed at length in Chapter~\ref{chap:state-of-the-art} and Chapter~\ref{chap:context}, produces a first, structured read of where an organisation stands before a consultant even walks into the room. Informal feedback gathered from two practitioners in Wavestone Luxembourg's Cyber practice, an analyst and a manager both regularly involved in running crisis management exercises, supports this reading. Their recurring difficulty, in their own account, is establishing where a given organisation actually stands before designing an exercise or a mission around it, and both saw the tool as directly useful for that purpose, in particular for identifying the best practices where an organisation is weakest, information that can then be used to design an exercise that genuinely tests those gaps rather than one that confirms strengths already in place.
+
+\subsection{Time savings and consistency across engagements}
+\label{sec:impact-consulting-time-savings}
+
+Two related benefits follow from the deterministic nature of the scoring engine (Chapter~\ref{chap:scoring-engine}, principle P1 in Chapter~\ref{chap:method}). First, a consultant no longer needs to build an assessment structure from scratch for each engagement: the referential and the scoring pipeline already exist and only need to be run against a given organisation's answers. Second, because the same inputs always produce the same score regardless of who runs the assessment, the tool removes a source of inconsistency that is otherwise hard to avoid when maturity is judged qualitatively by different consultants on different engagements. Neither benefit has been measured quantitatively at this stage, and no claim is made here about a specific amount of time saved.
+
+\subsection{A shared methodological language}
+\label{sec:impact-consulting-shared-language}
+
+By turning the sixteen ENISA best practices into named, identifiable units, BP01 to BP16, organised into four phases and scored on a common zero-to-four maturity scale, the platform gives consultants and clients, the intended audience described in Chapter~\ref{chap:framing}, a shared vocabulary to talk about crisis management maturity. A finding expressed as "BP08 is at maturity level 1" is unambiguous and reproducible in a way that a purely narrative assessment is not, which in turn makes it easier for a consultant and a client's security or governance team to agree on what needs to improve and why.
+
+The observations above draw on informal, internal feedback rather than on a supervised client trial: at the time of writing, the platform has not been used on an actual client engagement, and no decision, formal or informal, has been made regarding whether or how Wavestone might use it going forward. The value described here is therefore best read as an informed expectation grounded in early internal reactions from practitioners, not as a demonstrated commercial outcome.
+
+\section{Value for client organisations}
+\label{sec:impact-clients}
+
+Section~\ref{sec:impact-consulting} looked at value from Wavestone's side of the table. The same platform, run against a client's own answers, offers three related benefits to the organisation being assessed: a self-assessment explicitly aligned with the framework NIS2 implicitly expects, a set of recommended actions anchored in that same framework rather than in generic advice, and a score whose derivation the client, or an external auditor, can inspect rather than simply trust.
+
+\subsection{A NIS2-aligned self-assessment}
+\label{sec:impact-clients-nis2-alignment}
+
+For an organisation subject to NIS2, the practical difficulty is less the existence of the directive's crisis management expectations than the absence of an instrument to translate them into a concrete, measurable position. The referential underlying this platform operationalises exactly the framework NIS2 implicitly relies on for crisis management capability, the ENISA "Best Practices for Cyber Crisis Management" study discussed in Chapter~\ref{chap:context} and Chapter~\ref{chap:state-of-the-art}. Running a self-assessment against this referential gives a client organisation a structured, repeatable way to locate itself relative to that framework ahead of, rather than during, external scrutiny. The alignment operates at the level of the framework as a whole: the referential already carries per-best-practice fields intended for article-level NIS2 mapping (Section~\ref{sec:impact-perspectives}), but these remain unpopulated at the time of writing, so no claim is made here about article-by-article legal compliance.
+
+\subsection{Prioritised, framework-anchored actions}
+\label{sec:impact-clients-prioritised-actions}
+
+A raw maturity score is of limited use on its own; what a client organisation needs is a sense of where to act first. The scoring pipeline already surfaces this through its foundational gates (Chapter~\ref{chap:scoring-engine}), which cap the overall score when a foundational best practice is under-developed, and the AI recommendation layer built strictly downstream of the score (Chapter~\ref{chap:platform}, principle P1 in Chapter~\ref{chap:method}) turns the weakest best practices into narrative guidance. The result a client receives is therefore a short, prioritised list of actions anchored in the same referential used to compute the score, rather than a generic checklist assembled independently of the assessment.
+
+\subsection{An auditable, defensible score}
+\label{sec:impact-clients-auditable-score}
+
+Because the score is produced by a deterministic engine kept strictly separate from the AI layer (Chapter~\ref{chap:method}), it can be reconstructed from the underlying answers at any time, and the reasoning behind it, which best practices were weak, which gates or penalties applied, is available for inspection rather than hidden inside a model's output. This determinism was itself verified through an independent audit of the engine (Chapter~\ref{chap:validation}). For a client organisation, this matters concretely: a score a security team can defend to its own management, or to an external auditor, is worth more than one it can only assert.
+
+\section{Technological impact}
+\label{sec:impact-technological}
+
+Beyond its value to Wavestone and to client organisations, the project also makes a narrower technological point, less specific to crisis management and more about how LLMs can be used responsibly in a sensitive, regulated context. Two observations follow from the choices described in Chapter~\ref{chap:method} and revisited empirically in Chapter~\ref{chap:validation}.
+
+\subsection{A local LLM producing usable, structured output in a sensitive context}
+\label{sec:impact-technological-local-llm}
+
+The literature reviewed in Chapter~\ref{chap:state-of-the-art} frames model selection as a trade-off between fidelity, latency and infrastructure cost, smaller models running on commodity hardware against larger ones requiring dedicated GPU resources. This project revisits that trade-off empirically rather than only in principle: a small, CPU-run, fully local model, deployed through Ollama (Chapter~\ref{chap:platform}) and never exposed to client data or PII (principle P3, Chapter~\ref{chap:method}), was shown in Chapter~\ref{chap:validation} to produce recommendations relevant and structured enough to be usable for this specific task. This is not a general claim that small local models suffice for any LLM-augmented task; the task here is narrow and well-scoped, turning an already-computed set of weak best practices into narrative guidance, rather than open-ended reasoning. Within that scope, however, it is a concrete demonstration that useful output does not require sending sensitive assessment data to a cloud provider, which matters directly for organisations operating under NIS2's data-handling expectations.
+
+\subsection{Deterministic computation, AI strictly downstream: a reusable pattern}
+\label{sec:impact-technological-pattern}
+
+The second observation concerns architecture rather than model choice. The strict separation between a deterministic scoring engine, treated as the sole source of truth, and an LLM confined to producing narrative text on top of an already-computed result (principles P1 and P3, Chapter~\ref{chap:method}) was motivated by the hallucination risk documented in Chapter~\ref{chap:state-of-the-art}. Nothing in this separation is specific to crisis management maturity: the same pattern, compute a defensible result first with conventional logic, then let an LLM explain or prioritise that result rather than produce it, could plausibly extend to other domains where an organisation needs an auditable output alongside natural-language assistance, such as other maturity or compliance assessments. This project instantiates that pattern once, in one domain; it does not itself constitute evidence that the pattern has been, or will be, reused elsewhere at Wavestone.
+
+\section{Perspectives and future work}
+\label{sec:impact-perspectives}
+
+This final section shifts from what has been demonstrated to what could follow. One item below is not really a perspective at all: authentication was built during the internship and is already part of the platform, and is included here only to mark that boundary before turning to what remains open. Everything else in this section is a direction identified by the author as worth pursuing, not a commitment from Wavestone or a scheduled piece of work; none of it has an agreed timeline at the time of writing.
+
+\subsection{Already in place: authentication and access control}
+\label{sec:impact-perspectives-authentication}
+
+Real authentication, invitation-based account creation, server-side cookie sessions, three roles and per-owner assessment isolation, was itself once an open item and is now fully built, described in Chapter~\ref{chap:platform}. It is listed here, out of order with the rest of this section, only to draw a clear line: everything that follows is envisaged, not delivered.
+
+\subsection{NIS2 and ISO/IEC 27035 mapping}
+\label{sec:impact-perspectives-nis2-iso-mapping}
+
+The referential already carries, for every best practice, a \texttt{nis2\_articles} and an \texttt{iso\_27035\_clauses} field intended to record which article of the directive and which clause of the standard that best practice operationalises (Chapter~\ref{chap:scoring-engine}, first introduced in Chapter~\ref{chap:state-of-the-art}). At the time of writing these fields are present in the schema but empty for all sixteen best practices. As noted in Section~\ref{sec:impact-clients-nis2-alignment}, the platform's NIS2 alignment currently operates at the level of the ENISA framework as a whole; populating these fields would move it toward article- and clause-level granularity, and would most usefully be done with input from someone with regulatory or standards expertise rather than as a purely technical exercise.
+
+\subsection{Retrieval-augmented generation over the ENISA/NIS2 corpus}
+\label{sec:impact-perspectives-rag}
+
+The current AI layer grounds its recommendations in the assessment's own structured output through prompt grounding, discussed in Chapter~\ref{chap:state-of-the-art}, rather than in retrieval over source documents. A retrieval-augmented approach, indexing the ENISA and NIS2 texts with a vector store and Ollama embeddings and letting the model draw on that corpus when producing recommendations, was identified early in the project as a possible direction and left open at the time of writing. Beyond the engineering effort, it would raise the same question already flagged for the previous item: recommendations that cite specific passages of a regulatory or normative text carry a higher expectation of accuracy, and would need validation against the mitigation strategies discussed in Chapter~\ref{chap:state-of-the-art} rather than being assumed to reduce hallucination by construction.
+
+\subsection{Tracking maturity over time and cross-client benchmarking}
+\label{sec:impact-perspectives-versioning-benchmarking}
+
+Each assessment result is currently computed on demand from a set of answers and never stored as a standalone record (Chapter~\ref{chap:method}). This is adequate for a single assessment but leaves two related ideas unaddressed. The first is tracking a given client's maturity over time, for instance re-running the same assessment annually and showing how each best practice has evolved, which would require storing successive results rather than only the answers behind them. The second is benchmarking across clients, positioning one organisation's maturity against others in the same sector once enough assessments exist, which would require aggregating and anonymising results from several clients, a data-governance question of its own that has not been designed and that would need to respect the same privacy discipline already applied to the AI layer (principle P3, Chapter~\ref{chap:method}).
+
+\subsection{Infrastructure hardening and end-to-end testing}
+\label{sec:impact-perspectives-hardening-testing}
+
+Two infrastructure items remain open. A Docker Compose setup was planned from the project's first sprint but never built; the backend already resolves its referential path through an overridable environment variable for exactly this purpose, but no compose file packages the three services together. A migration from SQLite to PostgreSQL is planned for the same post-MVP stage; since the backend already uses an async SQLAlchemy stack, this would in principle only require changing the \texttt{DATABASE\_URL} the application points at, though this has not been attempted. Separately, the existing test suites cover the scoring engine and the backend API in isolation (Chapter~\ref{chap:scoring-engine}, Chapter~\ref{chap:platform}); no end-to-end test exercises the full assessment flow through the actual frontend, a gap that closing would give more confidence in the platform as a whole rather than in its parts individually.
