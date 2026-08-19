@@ -1,0 +1,195 @@
+@Book{GOT4,
+  author    = {George R.R. Martin},
+  title     = {{A Feast for Crows (A Song of Ice and Fire)}},
+  year      = {2005},
+  isbn      = {0-553-80150-3},
+  pages     = {784},
+  publisher = {Bantam}
+}
+
+@misc{wavestone2026results,
+  author = {{Wavestone}},
+  title  = {Chiffre d'affaires 2025/26 en croissance organique de +1\%, marge op\'erationnelle r\'ecurrente 2025/26 attendue \`a 12,6\%},
+  year   = {2026},
+  url    = {https://www.wavestone.com/fr/regul-information/chiffre-daffaires-2025-26-en-croissance-organique-de-1-marge-operationnelle-recurrente-2025-26-attendue-a-126/},
+  note   = {Communiqu\'e de r\'esultats annuels, consult\'e en ao\^ut 2026}
+}
+
+% =============================================================
+% Références bibliographiques — Chapitre 3 (State of the Art)
+% =============================================================
+% À fusionner dans votre .bib local. Toutes les clés ci-dessous sont déjà
+% citées telles quelles dans chapters/03_state_of_the_art.tex.
+%
+% Statut de vérification (voir claude/verification-references-chapitre3.md
+% dans le projet pour le détail des sources consultées) :
+%   [VÉRIFIÉ]   contrôlé indépendamment (web, DOI/venue confirmés)
+%   [REPRIS]    repris tel quel du draft original, non re-vérifié par mes soins
+%
+% Références PARTAGÉES avec d'autres chapitres (NIS2, ENISA, ISO 27035/27005) :
+% la source canonique est claude/references-partagees.bib dans le projet.
+% Ne changez pas ces clés sans mettre à jour ce fichier partagé aussi.
+% =============================================================
+
+% --- Partagées avec d'autres chapitres (cf. claude/references-partagees.bib) ---
+
+@misc{nis2_directive_2022,
+  title        = {Directive (EU) 2022/2555 of the European Parliament and of the Council of 14 December 2022 on measures for a high common level of cybersecurity across the Union (NIS2 Directive)},
+  year         = {2022},
+  howpublished = {Official Journal of the European Union, L 333, 27.12.2022}
+}
+
+@techreport{enisa_crisis_mgmt_2024,
+  author      = {{European Union Agency for Cybersecurity (ENISA)}},
+  title       = {Best Practices for Cyber Crisis Management},
+  institution = {ENISA},
+  year        = {2024},
+  month       = feb
+}
+
+@misc{iso27035_2023,
+  title        = {ISO/IEC 27035-1:2023, Information technology, Information security incident management, Part 1: Principles and process},
+  organization = {International Organization for Standardization},
+  year         = {2023},
+  howpublished = {\url{https://www.iso.org/standard/78973.html}}
+}
+
+@misc{iso27005_2022,
+  title        = {ISO/IEC 27005:2022, Information security, cybersecurity and privacy protection, Guidance on managing information security risks},
+  organization = {International Organization for Standardization},
+  year         = {2022},
+  howpublished = {\url{https://www.iso.org/standard/80585.html}}
+}
+
+% --- Spécifiques au Chapitre 3 ---
+
+% [VÉRIFIÉ]
+@techreport{nist_csf2_2024,
+  author      = {Pascoe, Cherilyn and Quinn, Stephen and Scarfone, Karen},
+  title       = {The {NIST} Cybersecurity Framework ({CSF}) 2.0},
+  institution = {National Institute of Standards and Technology},
+  type        = {NIST Cybersecurity White Paper},
+  number      = {CSWP 29},
+  year        = {2024},
+  month       = feb,
+  doi         = {10.6028/NIST.CSWP.29}
+}
+
+% [REPRIS, non re-vérifié]
+@misc{isaca_cmmi_cybermaturity,
+  author       = {{ISACA}},
+  title        = {{CMMI} Cybermaturity Platform, Self-assessment methodology},
+  howpublished = {\url{https://www.isaca.org/enterprise/cmmi-cybermaturity-platform}},
+  note         = {Accessed June 2026}
+}
+
+% [REPRIS, non re-vérifié]
+@techreport{ffiec_cat_2017,
+  author      = {{Federal Financial Institutions Examination Council}},
+  title       = {Cybersecurity Assessment Tool},
+  institution = {FFIEC},
+  year        = {2017},
+  note        = {Revised 2017}
+}
+
+% [REPRIS, non re-vérifié ; DOI déjà présent dans le draft original]
+@article{almomani2021cybersecurity,
+  author  = {Almomani, Iman and Ahmed, Mohanned and Maglaras, Leandros},
+  title   = {Cybersecurity maturity assessment framework for higher education institutions in Saudi Arabia},
+  journal = {PeerJ Computer Science},
+  volume  = {7},
+  pages   = {e703},
+  year    = {2021},
+  doi     = {10.7717/peerj-cs.703}
+}
+
+% [VÉRIFIÉ] version publiée COMPSAC 2020 (remplace le préprint arXiv:2004.10411)
+% DOI trouvé via dblp, non confirmé directement sur IEEE Xplore (robots.txt) :
+% à recontrôler sur https://ieeexplore.ieee.org/document/9202470/ avant rendu final.
+@inproceedings{drivas2020nis,
+  author    = {Drivas, George and Chatzopoulou, Argyro and Maglaras, Leandros and Lambrinoudakis, Costas and Cook, Allan and Janicke, Helge},
+  title     = {A {NIS} Directive Compliant Cybersecurity Maturity Assessment Framework},
+  booktitle = {2020 IEEE 44th Annual Computers, Software, and Applications Conference (COMPSAC)},
+  pages     = {1641--1646},
+  year      = {2020},
+  doi       = {10.1109/COMPSAC48688.2020.00-20}
+}
+
+% [VÉRIFIÉ] correction du draft : venue ICISSP 2020, pas "Business Informatics
+% Research" ; deux auteurs seulement (pas "et al.")
+@inproceedings{ostby2020maturity,
+  author    = {{\O}stby, Grethe and Katt, Basel},
+  title     = {Maturity Modelling to Prepare for Cyber Crisis Escalation and Management},
+  booktitle = {Proceedings of the 6th International Conference on Information Systems Security and Privacy (ICISSP 2020)},
+  pages     = {249--256},
+  year      = {2020},
+  address   = {Valletta, Malta}
+}
+
+% [VÉRIFIÉ] version publiée Computers & Security (remplace le préprint arXiv:2009.09210)
+@article{knight2020framework,
+  author  = {Knight, Richard and Nurse, Jason R. C.},
+  title   = {A framework for effective corporate communication after cyber security incidents},
+  journal = {Computers \& Security},
+  volume  = {99},
+  pages   = {102036},
+  year    = {2020},
+  doi     = {10.1016/j.cose.2020.102036}
+}
+
+% [REPRIS, non re-vérifié]
+@techreport{enisa_csirt_maturity_2019,
+  author      = {{European Union Agency for Cybersecurity (ENISA)}},
+  title       = {Maturity Evaluation Methodology for {CSIRTs} (v2)},
+  institution = {ENISA},
+  year        = {2019}
+}
+
+% [REPRIS, non re-vérifié ; liste d'auteurs tronquée dans le draft original]
+@article{ji2023survey,
+  author  = {Ji, Ziwei and Lee, Nayeon and Frieske, Rita and others},
+  title   = {Survey of Hallucination in Natural Language Generation},
+  journal = {ACM Computing Surveys},
+  volume  = {55},
+  number  = {12},
+  pages   = {1--38},
+  year    = {2023}
+}
+
+% [VÉRIFIÉ] remplace la source blog Lakera par la base primaire elle-même
+@misc{charlotin_hallucinations_db,
+  author       = {Charlotin, Damien},
+  title        = {{AI} Hallucination Cases Database},
+  year         = {2026},
+  howpublished = {\url{https://www.damiencharlotin.com/hallucinations/}},
+  note         = {Accessed [DATE À COMPLÉTER]}
+}
+
+% [VÉRIFIÉ] remplace le white paper Branch8 ; chiffres 68.2\%/7.9\% confirmés
+% directement sur le Tableau 4 du papier
+@inproceedings{shuster2021retrieval,
+  author    = {Shuster, Kurt and Poff, Spencer and Chen, Moya and Kiela, Douwe and Weston, Jason},
+  title     = {Retrieval Augmentation Reduces Hallucination in Conversation},
+  booktitle = {Findings of the Association for Computational Linguistics: EMNLP 2021},
+  pages     = {3784--3803},
+  year      = {2021},
+  doi       = {10.18653/v1/2021.findings-emnlp.320}
+}
+
+% [VÉRIFIÉ]
+@inproceedings{bechard2024reducing,
+  author    = {B{\'e}chard, Patrice and Marquez Ayala, Orlando},
+  title     = {Reducing Hallucination in Structured Outputs via Retrieval-Augmented Generation},
+  booktitle = {Proceedings of the 2024 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 6: Industry Track)},
+  pages     = {228--238},
+  year      = {2024},
+  doi       = {10.18653/v1/2024.naacl-industry.19}
+}
+
+% [VÉRIFIÉ] liste d'auteurs complétée (dblp)
+@inproceedings{wang2023selfconsistency,
+  author    = {Wang, Xuezhi and Wei, Jason and Schuurmans, Dale and Le, Quoc V. and Chi, Ed H. and Narang, Sharan and Chowdhery, Aakanksha and Zhou, Denny},
+  title     = {Self-Consistency Improves Chain of Thought Reasoning in Language Models},
+  booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
+  year      = {2023}
+}

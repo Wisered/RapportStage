@@ -1,0 +1,730 @@
+% =====================================================================
+%  The Scoring Engine: Methodology and Implementation
+%  PFE — Arthur Saunier — TELECOM Nancy / Wavestone Luxembourg
+%  >>> Version adaptee a la classe « tnreport » de TELECOM Nancy <<<
+%
+%  ---------------------------------------------------------------------
+%  1) PREAMBULE : RIEN A AJOUTER.
+%  ---------------------------------------------------------------------
+%  La classe tnreport charge deja tout ce que ce chapitre utilise :
+%  booktabs, tikz + \usetikzlibrary{positioning, arrows.meta, fit},
+%  listings (avec son \lstset), xcolor, cleveref et hyperref. Le chapitre
+%  compile tel quel, sans toucher au preambule. (cleveref est disponible :
+%  \cref fonctionne si tu veux, mais la prose utilise \ref.)
+%
+%  ---------------------------------------------------------------------
+%  2) INSERER LE CHAPITRE : sauver ce fichier sous chapters/scoring_engine.tex,
+%     puis, a l'endroit voulu dans Rapport_Stage.tex (entre deux chapitres,
+%     avant la Conclusion) :
+%         \input{chapters/scoring_engine}
+%     (ou coller directement le corps ci-dessous). Il apparaitra
+%     automatiquement dans la table des matieres, la liste des figures /
+%     tableaux et le \lstlistoflistings de la classe.
+%
+%  ---------------------------------------------------------------------
+%  3) LABELS D'AUTRES CHAPITRES REFERENCES ICI (a faire correspondre aux
+%     tiens, sinon les renvois resteront « undefined ») :
+%  ---------------------------------------------------------------------
+%    chap:method    -> ton chapitre « Methodological Approach »
+%    chap:platform  -> ton chapitre « Platform Architecture »
+%    chap:pm        -> ton chapitre « Project Management »
+%
+%  NB : le listing de 5.3 est ta vraie fonction engine.py (imports et
+%  docstring omis pour la place). Labels internes : sec:se-*, fig:se-*,
+%  tab:se-*, lst:se-*.
+% =====================================================================
+
+\chapter{The Scoring Engine: Methodology and Implementation}
+\label{chap:scoring-engine}
+
+% ---------------------------------------------------------------------
+%  CHAPEAU DU CHAPITRE (~½ page)
+%  Objectif : poser LE problème d'ingénierie avant toute solution.
+%  Fil directeur à faire ressortir :
+%    « Comment transformer une auto-évaluation déclarative et subjective
+%      de maturité de gestion de crise cyber en un score qu'un consultant
+%      peut défendre, chiffre par chiffre, devant un client — c.-à-d.
+%      déterministe, auditable et résistant au gaming ? »
+%  Points à couvrir :
+%    - pourquoi une moyenne pondérée naïve échoue : opaque, manipulable,
+%      non reproductible ;
+%    - énoncer les 2 propriétés non négociables : AUDITABILITÉ + ANTI-DÉCLARATIF ;
+%    - annoncer que chaque mécanisme du moteur répond à un mode de défaillance ;
+%    - annoncer le plan des 5 sections.
+% ---------------------------------------------------------------------
+
+The two preceding chapters established \emph{what} this project set out to
+build---a self-assessment platform for cyber crisis management maturity, grounded
+in the ENISA \emph{Best Practices for Cyber Crisis Management} framework---and the
+methodological principles that would govern \emph{how} it was built. This chapter
+turns to the component on which everything else depends: the \emph{scoring engine},
+the deterministic core that converts a respondent's answers into a maturity score.
+
+The engineering problem is easy to state and deceptively hard to solve well. The
+engine's input is a \emph{self-assessment}: for each of the framework's sixteen
+best practices, a respondent declares a maturity level and points to the evidence
+that supports it. Self-assessment is, by nature, subjective and declarative---two
+properties that a scoring mechanism must actively counter rather than faithfully
+reproduce. A naive approach, a weighted average of declared maturities, would fail
+on three counts at once. It would be \textbf{opaque}: a single aggregate figure
+gives a consultant no way to explain to a client \emph{why} the number is what it
+is. It would be \textbf{gameable}: nothing would stop an organisation from claiming
+the highest maturity everywhere, unsupported by any evidence, and walking away with
+a flattering result. And it would be \textbf{fragile}: with nine best practices in
+\emph{Preparedness} against only two in \emph{Response} and two in \emph{Recovery},
+a plain mean would let one phase silently dominate the verdict.
+
+Two properties are therefore non-negotiable, and they organise the entire design.
+The score must be \textbf{auditable}---every point, every cap, every deduction
+traceable back to a specific answer and a specific rule, so that the result can be
+defended number by number in front of a client. And it must be \textbf{resistant to
+gaming}---a claim unsupported by evidence must not be allowed to inflate the score.
+From these two requirements the rest follows: rather than a single formula, the
+engine is a pipeline of deliberately ordered stages, each one the answer to a
+specific failure mode of naive scoring---evidence caps against the declarative
+bias, foundational gates against structural weaknesses, consistency penalties
+against incoherent self-portraits, and phase normalisation against structural
+imbalance.
+
+This chapter develops that design in five movements.
+Section~\ref{sec:se-spec} derives the scoring specification from the consulting
+need and fixes the engine's input and output contracts.
+Section~\ref{sec:se-pipeline} presents the fixed-order pipeline at the heart of the
+engine and argues why the order is itself a design decision.
+Section~\ref{sec:se-architecture} shows how that specification is translated into a
+codebase built for determinism and auditability.
+Section~\ref{sec:se-testing} describes the testing strategy and an independent
+audit that exposed---and led me to close---two genuine blind spots.
+Section~\ref{sec:se-reflection} steps back to weigh the model's limits and the
+choices I would defend or revisit.
+
+
+% =====================================================================
+\section{The scoring specification}
+\label{sec:se-spec}
+% ---------------------------------------------------------------------
+%  RÔLE : le « cahier des charges » du moteur. Section analyse du besoin.
+%  Critères tuteur servis : choix justifiés (dérivation besoin -> spec).
+%
+%  À couvrir :
+%   - De la douleur métier à la spécification : partir du besoin consulting
+%     (défendre un chiffre devant le client, empêcher l'auto-diagnostic
+%     complaisant) et EN DÉRIVER les exigences formelles (ne pas présenter
+%     la spec comme donnée).
+%   - Objets du domaine : 4 phases (Preparedness / Response / Recovery / ...),
+%     16 best practices, 48 questions (3 par BP), échelle de maturité,
+%     types de preuve, paires de cohérence, règles N/A.
+%   - Le référentiel 1.1.0 comme SOURCE DE VÉRITÉ UNIQUE.
+%   - Le contrat de sortie : PAS un score mais un AssessmentResult
+%     (gates_applied, penalties_applied, cap_applied/question,
+%      capped_question_ids, N/A) -> pose l'exigence d'auditabilité.
+%   - Exigences dérivées : déterminisme, reproductibilité, pilotage par le
+%     référentiel, anti-gaming (chacune sera « payée » en 5.2 / 5.3).
+% ---------------------------------------------------------------------
+
+The scoring specification has a concrete origin. The ENISA framework~\cite{enisa2024}
+describes sixteen best practices across four crisis phases, but it stops at
+description: it offers no way to measure how mature an organisation actually is
+against them. At the same time, the NIS2 directive~\cite{nis2} pushes organisations
+to demonstrate crisis-management maturity, and the general-purpose self-assessments
+that exist, such as the CISA Cyber Resilience Review~\cite{cisacrr} or maturity
+ratings inspired by the NIST Cybersecurity Framework~\cite{nistcsf}, do not map
+cleanly onto ENISA or onto NIS2 obligations. The need is therefore a measurement tool
+that a Wavestone consultant can sit behind, in front of a client, to present a
+maturity figure and defend it. That single constraint drives every requirement in
+this section: a score that cannot be explained, or that rewards optimistic answers,
+carries little value in an audit setting, whatever the formula behind it.
+
+The engine scores an organisation against the ENISA \emph{Best Practices for Cyber
+Crisis Management} framework, encoded in a single file, \texttt{referential.yaml}
+(version~1.1.0). This file is the centre of gravity of the whole specification: it
+holds the four phases, the sixteen best practices, the forty-eight questions and
+every threshold the engine uses. Table~\ref{tab:se-referential} summarises its
+structure. The framework follows the four phases of a crisis lifecycle, Prevention,
+Preparedness, Response and Recovery, each carrying an equal weight of 25\% in the
+global score. Every phase groups several best practices (BPs), and every best
+practice is assessed through three questions.
+
+For each question, a respondent provides two things: a declared maturity level on a
+CMMI-style five-point scale~\cite{cmmi}, from 0 (\emph{Not in place}) to 4
+(\emph{Optimized}), and the
+type of evidence backing the claim, from \texttt{no\_formal\_evidence} up to
+\texttt{real\_incident}. The evidence type carries real weight, since it sets a
+ceiling on how high the declared maturity can count. This is the first line of
+defence against optimistic self-scoring. A best practice can also be marked
+\emph{Not Applicable} when it genuinely does not fit the organisation, within the
+strict limits detailed in Section~\ref{sec:se-pipeline}.
+
+Beyond the questions themselves, the referential also carries the methodological
+adjustments that give the score meaning. Four best practices are flagged as
+\emph{foundational} (BP04, BP07, BP08 and BP12), the governance and
+crisis-coordination baseline the rest depends on. Three pairs of best practices are
+declared as consistency pairs (BP10/BP11, BP07/BP08 and BP05/BP15), since the two
+practices in a pair are expected to progress together. Each of these elements
+carries its own thresholds: a minimum score and a cap for the gates, a maximum gap
+and a point penalty for the pairs. Keeping these values in the referential rather
+than in the code lets the framework evolve through a version bump, with no change
+to the engine.
+
+The output contract is where auditability is won or lost. The engine returns a full
+result object, \texttt{AssessmentResult}, holding the final score together with the
+reasoning behind it: which gates were applied, which consistency penalties were
+deducted, which questions had their maturity capped by evidence, and which best
+practices were excluded as N/A. A consultant can trace any figure back to the exact
+rule and answer that produced it. The same object is defined once and reused by
+every layer above the engine, and it later feeds the AI stage of
+Chapter~\ref{chap:platform}, which reads the result and never modifies it.
+
+These considerations translate into five requirements that the rest of the chapter
+has to meet:
+\begin{itemize}
+  \item \emph{Auditability}: every point in the final score traces back to a rule
+        and an answer.
+  \item \emph{Anti-gaming}: unsupported or optimistic answers cannot inflate the
+        score.
+  \item \emph{Determinism}: the same input always produces the same output, with no
+        hidden state.
+  \item \emph{Reproducibility}: a score can be recomputed at any time from the
+        stored answers and the referential version.
+  \item \emph{Referential-driven}: the referential stays the single source of
+        truth, and the engine reads its thresholds instead of hard-coding them.
+\end{itemize}
+Sections~\ref{sec:se-pipeline} and~\ref{sec:se-architecture} show how the pipeline
+and the code deliver each one.
+
+% -- Emplacement tableau : structure du référentiel (phases x BP x questions)
+\begin{table}[htbp]
+  \centering
+  \caption{Structure of the referential (v1.1.0): phases, best practices and questions.}
+  \label{tab:se-referential}
+  \begin{tabular}{llcc}
+    \toprule
+    Phase & \# Best practices & \# Questions & Phase weight \\
+    \midrule
+    % TODO : compléter avec les vraies valeurs du référentiel
+    Prevention   & 3  & 9  & 25\,\% \\
+    Preparedness & 9  & 27 & 25\,\% \\
+    Response     & 2  & 6  & 25\,\% \\
+    Recovery     & 2  & 6  & 25\,\% \\
+    \midrule
+    Total        & 16 & 48 & 100\,\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+% =====================================================================
+\section{The fixed-order pipeline}
+\label{sec:se-pipeline}
+% ---------------------------------------------------------------------
+%  RÔLE : cœur intellectuel du chapitre. Loger ici « problématique +
+%  solution intelligente ». Présenter le calcul comme un pipeline en
+%  ORDRE FIXE, chaque étape = réponse à un mode de défaillance.
+%
+%  Étapes (ordre fixe) :
+%    1. Agrégation de la maturité brute par question.
+%    2. Caps de preuve / question  -> anti-déclaratif (niveau 4 sans preuve
+%       formelle plafonné à 1 ; caps monotones no_formal_evidence->1 ...
+%       real_incident->4).
+%    3. Agrégation au niveau BP.
+%    4. Gates : un BP foundational sous son seuil plafonne la phase/le global.
+%       Règle « le cap le plus strict gagne » entre gates multiples.
+%    5. Pénalités de cohérence : paires de BP appariés divergeant de > 2
+%       niveaux -> sanction forfaitaire (DIFFÉRENCIATEUR MÉTHODOLOGIQUE, ta
+%       contribution originale).
+%    6. Normalisation des phases à 25 % (évite que Preparedness (9 BP)
+%       écrase Response/Recovery (2 BP)).
+%    7. Finalisation -> mapping vers le niveau global.
+%
+%  À mettre en valeur (signaux « ingénieur ») :
+%    - POURQUOI l'ordre est fixe : ordre gate -> pénalité justifié par
+%      l'exemple chiffré (60 vs 65, cf. CLAUDE.md §6.1). Reprendre tel quel.
+%    - Neutralité du N/A : exclu du numérateur ET du dénominateur (pas un 0).
+%
+%  RECOMMANDÉ : (a) schéma du pipeline en figure ; (b) exemple numérique
+%  déroulé de bout en bout dans un tableau.
+% ---------------------------------------------------------------------
+
+The engine computes a score in a fixed sequence of stages, shown in
+Figure~\ref{fig:se-pipeline}. The order is itself part of the design, and this
+section returns to it once the stages are in place. Each stage plays a precise
+role: it either aggregates values up one level of the framework, from questions to
+best practices to phases to the global score, or it applies one of the corrective
+mechanisms that protect the two properties set out in Section~\ref{sec:se-spec}.
+Read in order, the pipeline turns a set of raw answers into a single defensible
+figure, and every intermediate value it produces is kept for the audit trail.
+
+The first stage acts on each question, before any aggregation. The declared
+maturity is capped by the evidence type: a level claimed with
+\texttt{no\_formal\_evidence} cannot count above 1, \texttt{documented} above 2,
+\texttt{tested} above 3, and only \texttt{real\_incident} allows the full 4. The
+effective maturity used from then on is the smaller of the declared level and this
+cap. This stage is the engine's answer to the declarative bias of self-assessment:
+a confident claim with nothing to back it up is brought back to what the evidence
+supports, and the cap is recorded so the respondent can see why. The question score
+is then the effective maturity over 4, weighted by the question's own weight.
+
+The next stages aggregate upward. Question scores combine into a best-practice score
+on a 0 to 100 scale, and best-practice scores combine into a phase score using their
+intra-phase weights. A best practice marked N/A leaves the computation entirely,
+with no contribution to either the numerator or the denominator of its phase, so a
+genuinely irrelevant practice neither helps nor hurts the result. Phase scores then
+combine into the raw global score, where each of the four phases counts for exactly
+25\%, whatever the number of best practices it contains. This last choice answers
+the structural imbalance noted earlier: left alone, Preparedness and its nine best
+practices would speak far louder than Response or Recovery with two each.
+
+With a raw global score in hand, the engine applies the foundational gates. If a
+foundational best practice (BP04, BP07, BP08 or BP12) scores below its required
+minimum of 40, the global score is capped at the value set for that gate, between 60
+and 70 depending on the practice. When several gates apply at once, the strictest
+cap wins. The gates encode a simple idea: some practices are prerequisites, and a
+serious weakness in governance or coordination should hold the whole score down,
+however strong the rest looks. A high average cannot paper over a missing
+foundation.
+
+The engine then applies the consistency penalties, the most original mechanism of
+the model. Three pairs of best practices are expected to move together: exercises
+and training (BP10/BP11), roles and escalation criteria (BP07/BP08), and asset
+mapping and business resumption (BP05/BP15). For each pair, the engine measures the
+gap between the two effective maturities, averaged over their questions. A pair is
+skipped whenever either of its two best practices is marked N/A, since a practice
+that does not apply cannot be called inconsistent with its partner. If the gap
+exceeds two levels, it deducts a flat five points from the score. The penalty
+targets incoherent profiles, where an organisation rates one practice highly while
+neglecting the practice that should support it. Penalties are cumulative, and the
+score is floored at 0. A final stage maps the resulting score onto the five global
+maturity levels, from \emph{Not in place} to \emph{Optimized}, for reporting to an
+executive audience.
+
+The order of the last two mechanisms is a deliberate choice, and it changes the
+result. Consider an assessment whose raw global score is 72, where a foundational
+gate caps it at 65 and one consistency pair triggers a five-point penalty. Applying
+the gate first gives 65, then the penalty brings it to 60. Reversing the order would
+deduct the penalty first, giving 67, then cap at 65, so the incoherence would
+disappear into the ceiling. The chosen order treats the gate as a hard ceiling caused
+by a missing prerequisite and makes the incoherence penalty bite on top of it, which
+is the stricter and more faithful reading. The same logic explains why the strictest
+cap wins when two gates apply: the ceiling reflects the worst prerequisite failure,
+not an average of them.
+
+% -- Emplacement figure : schéma du pipeline en ordre fixe
+\begin{figure}[htbp]
+  \centering
+  % Requiert dans le préambule :
+  %   \usepackage{tikz}
+  %   \usetikzlibrary{positioning, arrows.meta}
+  \begin{tikzpicture}[
+      >={Latex[length=2mm]},
+      node distance=6.5mm,
+      stage/.style={draw, rounded corners, align=center, text width=4.4cm,
+                    minimum height=8.5mm, font=\small},
+      guard/.style={stage, fill=gray!15, very thick},
+      note/.style={align=left, text width=4.6cm, font=\footnotesize\itshape,
+                   text=gray!50!black},
+      arr/.style={-{Latex[length=2mm]}, thick},
+    ]
+    \node[stage] (input)             {Answers: declared maturity $+$ evidence};
+    \node[guard, below=of input] (cap)  {Evidence cap \\ (per question)};
+    \node[stage, below=of cap]   (q)    {Question score};
+    \node[stage, below=of q]     (bp)   {Best-practice score};
+    \node[stage, below=of bp]    (ph)   {Phase score};
+    \node[stage, below=of ph]    (gl)   {Raw global score \\ (4 phases, 25\,\% each)};
+    \node[guard, below=of gl]    (gate) {Foundational gates};
+    \node[guard, below=of gate]  (pen)  {Consistency penalties};
+    \node[stage, below=of pen]   (fin)  {Final score \& maturity level};
+
+    \draw[arr] (input) -- (cap);
+    \draw[arr] (cap)   -- (q);
+    \draw[arr] (q)     -- (bp);
+    \draw[arr] (bp)    -- (ph);
+    \draw[arr] (ph)    -- (gl);
+    \draw[arr] (gl)    -- (gate);
+    \draw[arr] (gate)  -- (pen);
+    \draw[arr] (pen)   -- (fin);
+
+    \node[note, right=7mm of cap]  {counters the declarative bias};
+    \node[note, right=7mm of gl]   {counters structural imbalance};
+    \node[note, right=7mm of gate] {enforces prerequisites; strictest cap wins};
+    \node[note, right=7mm of pen]  {penalises incoherent pairs};
+  \end{tikzpicture}
+  \caption{The fixed-order scoring pipeline. Each stage answers a specific
+           failure mode of a naive weighted average.}
+  \label{fig:se-pipeline}
+\end{figure}
+
+\subsection*{A worked example}
+The example below follows a single assessment through the pipeline. It is
+deliberately simple, chosen so that one run triggers an evidence cap, a foundational
+gate and a consistency penalty, with each mechanism visible in turn.
+Table~\ref{tab:se-worked-example} gives the running value after each stage.
+
+% -- Emplacement tableau : exemple numérique déroulé de bout en bout
+\begin{table}[htbp]
+  \centering
+  \caption{End-to-end worked example: from raw answers to the final global score.}
+  \label{tab:se-worked-example}
+  \begin{tabular}{@{}p{2.8cm}p{3.0cm}p{5.4cm}@{}}
+    \toprule
+    Pipeline stage & Running value & Why \\
+    \midrule
+    Evidence cap           & BP08\_Q3: 3 capped to 1 & No formal evidence limits the claim to \emph{Ad hoc}. \\
+    BP / phase aggregation & BP08 $= 30/100$         & Weak effective maturities across its three questions. \\
+    Phase normalisation    & Raw global $= 72$       & Mean of the four phase scores, 25\,\% each. \\
+    Foundational gate      & Capped to $65$ (BP08 $< 40$) & A weak escalation baseline caps the whole score. \\
+    Consistency penalty    & $65 - 5 = 60$           & BP07 and BP08 differ by more than two maturity levels. \\
+    Finalisation           & $60 \rightarrow$ Level~2 & Mapped to \emph{Defined} for executive reporting. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+% =====================================================================
+\section{Architecture of the engine}
+\label{sec:se-architecture}
+% ---------------------------------------------------------------------
+%  RÔLE : traduction de la spec en code défendable. Section conception.
+%  Critères tuteur : choix justifiés (architecture), qualité d'ingénierie.
+%
+%  À couvrir :
+%   - Les 5 principes inviolables (P1–P5), surtout :
+%       P1 : moteur pur, synchrone, sans I/O ni hasard -> déterminisme ;
+%       P4 : référentiel = source de vérité unique, un seul loader.
+%   - Décomposition en modules : referential_loader, evidence, na_rules,
+%     aggregation, finalization, engine + models/ (referential = contrat,
+%     inputs = brut utilisateur, outputs = trace d'audit). Une fonction pure
+%     et courte par étape -> le code se lit comme la spec de 5.2.
+%   - Design défensif : immutabilité (frozen=True, extra="forbid"),
+%     validation croisée au chargement (3 questions/BP, contiguïté 0->100
+%     des niveaux, foundational_cannot_be_na), bornes garanties par
+%     construction ET par filet Pydantic (Field(ge=0, le=100)).
+%   - Anticipation de l'intégration (pont vers le Ch6, \cref{chap:platform}) :
+%     moteur agnostique de la DB, traduction DB->moteur isolée dans un seul
+%     « bridge », score recalculé à la volée et jamais stocké (P1).
+% ---------------------------------------------------------------------
+
+The specification of Section~\ref{sec:se-spec} and the pipeline of
+Section~\ref{sec:se-pipeline} translate into a codebase whose shape is driven by two
+of the inviolable principles set out in Chapter~\ref{chap:method}: determinism (P1)
+and the referential as single source of truth (P4). The engine is a pure,
+synchronous function with no I/O and no randomness. The same input always produces
+the same output. That property is what turns reproducibility and auditability from
+intentions into facts: any score can be recomputed at will, and there is no hidden
+state to explain away when defending a figure.
+
+The code mirrors the pipeline one module at a time. A \texttt{referential\_loader}
+reads and validates the YAML, an \texttt{evidence} module applies the caps, an
+\texttt{na\_rules} module handles the N/A cases, an \texttt{aggregation} module
+climbs from questions to best practices to phases, and a \texttt{finalization}
+module applies the gates, the penalties and the level mapping. A thin
+\texttt{engine} module orchestrates them in the fixed order. Each function is pure
+and short, so the top-level routine reads like the ordered list of
+Section~\ref{sec:se-pipeline} rather than hiding it under machinery.
+Listing~\ref{lst:se-engine} shows that routine, and
+Figure~\ref{fig:se-modules} shows the decomposition.
+
+The data models are split into three families that the engine keeps deliberately
+apart: the referential models, which hold the framework loaded from the YAML; the
+input models, which hold the raw answers a respondent provides; and the output
+models, built around the \texttt{AssessmentResult} audit trace. The separation keeps
+three questions from ever being confused: what the framework says, what the user
+claimed, and what the engine concluded. It also anticipates the platform, where the
+database stores the raw inputs while the result stays recomputable on demand.
+
+Defensive design runs through the whole package. The referential models are frozen
+and reject unknown fields, so the framework cannot be mutated after loading and a
+typo in the YAML raises an error instead of quietly creating a phantom field. The
+loader checks its invariants at startup: every best practice carries exactly three
+questions, the global maturity levels tile the whole 0 to 100 range with no gap, and
+no foundational practice is allowed to be N/A. A malformed referential fails loudly
+and early, before a single assessment is scored.
+
+The final score is bounded to the range 0 to 100 twice over, once by the arithmetic
+of the pipeline and once by a constraint on the output field, so a computation bug
+surfaces as a validation error rather than as an implausible score reaching a
+client. The package is fully typed throughout. Taken one by one these guarantees are
+modest, but together they make the engine hard to break quietly, which is exactly
+what a component whose output has to be trusted in front of a client needs.
+
+The engine stays deliberately unaware of everything around it: no database, no web
+framework, no configuration beyond the path to the referential. When the platform is
+built (Chapter~\ref{chap:platform}), a single translation layer maps stored answers
+onto the engine's input models, and the score is computed on demand from those
+answers and the referential version. Keeping that seam thin and one-directional is
+what lets the engine remain the pure, testable core that the next section puts under
+scrutiny.
+
+% -- Emplacement figure : diagramme de modules / couches
+\begin{figure}[htbp]
+  \centering
+  % Requiert dans le préambule :
+  %   \usepackage{tikz}
+  %   \usetikzlibrary{positioning, arrows.meta, fit}
+  \begin{tikzpicture}[
+      >={Latex[length=2mm]},
+      font=\small,
+      mod/.style={draw, rounded corners, align=center, text width=3.0cm,
+                  minimum height=7mm, fill=white},
+      io/.style={draw, align=center, text width=2.4cm, minimum height=8mm,
+                 font=\footnotesize, fill=gray!8},
+      note/.style={align=center, font=\footnotesize\itshape, text=gray!50!black},
+      arr/.style={-{Latex[length=2mm]}, thick},
+    ]
+    \node[mod] (loader) {referential\_loader};
+    \node[mod, below=3.5mm of loader] (evi) {evidence};
+    \node[mod, below=3.5mm of evi]   (na)  {na\_rules};
+    \node[mod, below=3.5mm of na]    (agg) {aggregation};
+    \node[mod, below=3.5mm of agg]   (fin) {finalization};
+    \node[note, below=3mm of fin]    (models) {models: referential $\cdot$ inputs $\cdot$ outputs};
+
+    \node[draw, dashed, rounded corners, inner sep=5mm,
+          fit=(loader)(evi)(na)(agg)(fin)(models),
+          label={[note]above:Scoring engine: pure, deterministic, no I/O}] (engine) {};
+
+    \node[io, left=2.0cm of loader] (ref) {referential.yaml};
+    \node[io, left=2.0cm of agg]    (db)  {Database (stored answers)};
+    \node[io, below=4mm of db]      (bridge) {scoring\_bridge};
+    \node[io, right=2.0cm of fin]   (result) {AssessmentResult (audit trace)};
+    \node[note, below=3mm of result, text width=3.2cm]
+         {read by the API and AI stage, never modified};
+
+    \draw[arr] (ref)      -- (loader.west);
+    \draw[arr] (db)       -- (bridge);
+    \draw[arr] (bridge)   -- (agg.west);
+    \draw[arr] (fin.east) -- (result);
+  \end{tikzpicture}
+  \caption{Module decomposition of the scoring engine and its layering
+           (pure engine vs. I/O boundary).}
+  \label{fig:se-modules}
+\end{figure}
+
+% Extrait de app/scoring/engine.py (imports et docstring omis pour la place ;
+% deux appels reformates sur deux lignes pour tenir dans la largeur de page).
+% Le style de listing est celui de la classe tnreport (rien a definir).
+\begin{lstlisting}[language=Python,caption={The top-level \texttt{score\_assessment} routine: the code reads like the ordered pipeline of Section~\ref{sec:se-pipeline}.},label={lst:se-engine}]
+def score_assessment(
+    assessment: AssessmentInput,
+    referential: Referential,
+) -> AssessmentResult:
+    # Stage 0: validate N/A annotations (raises if invalid).
+    validate_na_annotations(assessment, referential)
+
+    # Stages 1-3: evidence cap, question and BP scoring (N/A excluded).
+    all_bp_results: list[BPResult] = [
+        score_bp(bp, assessment, referential)
+        for bp in referential.best_practices
+    ]
+
+    # Stage 4: aggregate BPs into phases.
+    phase_results: list[PhaseResult] = []
+    for phase in referential.phases:
+        phase_bps = [bp for bp in all_bp_results if bp.phase == phase.id]
+        phase_results.append(score_phase(phase, phase_bps))
+
+    # Stage 5: raw global score (mean of phases).
+    raw_global = compute_raw_global(phase_results)
+
+    # Stage 6: foundational gates (cap if a foundational BP is weak).
+    gated_score, gates_applied = apply_foundational_gates(
+        raw_global, all_bp_results, referential)
+
+    # Stage 7: consistency penalties (subtract, floor 0).
+    final_score, penalties_applied = apply_consistency_penalties(
+        gated_score, all_bp_results, referential)
+
+    # Stage 9: map the final score to a global maturity level.
+    global_level = map_global_level(final_score, referential)
+
+    return AssessmentResult(
+        referential_version=referential.metadata.referential_version,
+        phase_results=phase_results,
+        raw_global_score=raw_global,
+        gated_score=gated_score,
+        final_global_score=final_score,
+        global_level=global_level,
+        gates_applied=gates_applied,
+        penalties_applied=penalties_applied,
+        # na_bp_ids / capped_question_ids: audit-trace views (omitted here)
+    )
+\end{lstlisting}
+
+
+% =====================================================================
+\section{Testing strategy and audit}
+\label{sec:se-testing}
+% ---------------------------------------------------------------------
+%  RÔLE : LA section la plus payante pour le tuteur.
+%  Critères tuteur : problèmes rencontrés + résolution méthodique, recul
+%  critique, validation southbound & northbound, gestion des risques.
+%
+%  À couvrir :
+%   - Stratégie de test : tests par étage, scénarios « golden » comme spec
+%     exécutable, test_determinism (verrouille P1), balayage paramétré des
+%     bornes [0,100], cas d'erreur du loader.
+%   - L'audit indépendant (16,5/20) et ses 2 angles morts, présentés comme
+%     des PROBLÈMES RENCONTRÉS :
+%       H1 : la branche des pénalités de cohérence (ton différenciateur)
+%            n'était couverte par AUCUN test ;
+%       H2 : penalty_percent_of_global_score appliqué comme points absolus,
+%            le nom contredisait le code ;
+%       + champs décoratifs (global_weight, foundational_can_be_na).
+%   - La boucle de correction (CHANGELOG) : filet de sécurité AVANT refactor,
+%     +3 tests (64->67), renommage -> penalty_points, décision tranchée
+%     (points absolus assumés), bump du référentiel -> 1.1.0, 70 tests au total.
+% ---------------------------------------------------------------------
+
+An engine is only as trustworthy as the tests that pin its behaviour down, and here
+the tests carry an unusual weight, since the whole point of the engine is to be
+defended figure by figure. The suite is organised by pipeline stage, so each
+mechanism is checked in isolation, and it is anchored by five \emph{golden}
+scenarios that act as an executable specification: a fixed set of answers mapped to
+a fixed, fully written-out \texttt{AssessmentResult}. A dedicated determinism test
+enforces P1 by scoring the same input twice and comparing the serialised results
+byte for byte. A parametrised sweep over many answer combinations proves that the
+score always lands within 0 to 100, and the loader's failure cases (a missing file,
+malformed YAML, a missing field) are covered as well. At the point of the audit the
+suite held 64 tests, all green.
+
+To get an outside view before any platform work began, the engine, the referential
+and the documentation were put through an independent, read-only audit. It rated the
+work 16.5 out of 20, and, more usefully, it surfaced two real blind spots that a set
+of green tests had kept out of sight.
+
+The first and sharpest finding (H1) concerned the consistency penalty, the model's
+most original mechanism. No test ever exercised it. Every golden scenario used a
+uniform maturity across best practices, so the maturity gap never crossed the
+threshold and the penalty branch simply never ran. A suite of green tests told a
+reassuring story while leaving the one mechanism that makes the model distinctive
+entirely uncovered. The multi-gate rule, where the strictest cap wins, was checked
+only loosely, without a numerical assertion.
+
+The second finding (H2) was a naming contradiction. The penalty field was called
+\texttt{penalty\_percent\_\allowbreak of\_\allowbreak global\_score}, yet the code
+subtracted it as a flat number of points. On a score of 80, five percent and five points are not the same
+value, and a later maintainer could easily have corrected the code in the wrong
+direction. The audit also flagged two referential fields that were loaded and
+validated but never actually read (\texttt{global\_weight} and
+\texttt{foundational\_can\_be\_na}), along with an undocumented rounding convention.
+Table~\ref{tab:se-audit} lists the findings and how each was closed.
+
+The corrections followed a deliberate order, and the order is the point. A safety
+net came first: three targeted tests were written before any production code was
+touched, capturing the current behaviour of the penalty branch, the strictest-cap
+rule, and the strict greater-than threshold. Only once that behaviour was
+locked did the refactors follow. The penalty field was renamed to
+\texttt{penalty\_points} and its meaning fixed as a flat, absolute deduction, which
+changes the YAML contract and so triggered a referential version bump from 1.0.0 to
+1.1.0. The two decorative fields were wired to drive the computation for real, each
+change designed to leave the golden numbers untouched when the phase weights are all
+equal, so the existing scenarios stayed green. The rounding convention was
+documented rather than altered. The suite was re-run after every step and moved from
+64 to 67 tests, all passing, with no existing test modified.
+
+This sequence is what the chapter has been building toward. Writing the safety net
+before the refactor, bumping the version when the contract changed, and preferring
+changes that preserve the golden numbers are the habits that let a scoring engine be
+modified without fear of a silent regression. The audit turned ``the tests
+pass'' into ``the differentiator is proven'', which is the claim that actually
+matters in front of a jury or a client. After integration into the platform the
+suite stands at 70 tests. What it cannot settle, the choices that are defensible
+rather than provable, is the subject of the next section.
+
+% -- Emplacement tableau : synthèse des findings d'audit et corrections
+\begin{table}[htbp]
+  \centering
+  \caption{Audit findings and the corrective loop that followed.}
+  \label{tab:se-audit}
+  \begin{tabular}{@{}cp{4.7cm}cp{5.6cm}@{}}
+    \toprule
+    ID & Finding & Severity & Resolution \\
+    \midrule
+    H1 & Consistency-penalty branch never exercised by tests & High &
+         Three golden tests added; suite $64 \rightarrow 67$ \\
+    H2 & Field name contradicts the absolute-points code & High &
+         Renamed \texttt{penalty\_points}; referential bumped to 1.1.0 \\
+    M1 & \texttt{global\_weight} loaded but unused & Medium &
+         Weighted mean now reads it (invariant at 0.25) \\
+    M2 & \texttt{foundational\_can\_be\_na} inert & Medium &
+         Flag now read from the referential \\
+    B1 & Rounding convention undocumented & Low &
+         Documented (round-half-to-even) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+% =====================================================================
+\section{Critical reflection}
+\label{sec:se-reflection}
+% ---------------------------------------------------------------------
+%  RÔLE : recul critique explicite (prépare le Ch9, \cref{chap:pm}).
+%
+%  À couvrir :
+%   - Limites assumées + défenses :
+%       * seuils « magiques » (min 40, caps 60/60/65/70, gap max 2,
+%         pénalité 5) -> paramètres experts Wavestone, versionnés ;
+%         idéalement esquisser une analyse de sensibilité ;
+%       * pénalité fondée sur la maturité EFFECTIVE (post-cap) -> volontaire :
+%         on mesure le démontrable, pas le déclaré ;
+%       * normalisation 25 % comme constante structurelle ;
+%       * arrondi bancaire aux frontières de niveau.
+%   - Ce que je referais autrement -> transition vers le Ch9.
+%   - Positionnement : déterminisme + auditabilité rendent l'étage IA (Ch6)
+%     SÛR (l'IA ne voit que AssessmentResult + référentiel, jamais de PII
+%     ni de justifications N/A).
+% ---------------------------------------------------------------------
+
+The engine is deterministic and has been audited, but a few of its choices are
+matters of expert judgement, defensible rather than provable. Setting them out
+plainly is part of the same engineering honesty that drove the audit, and it is also
+the best preparation for the questions a jury is likely to ask.
+
+The clearest example is the set of thresholds the model relies on: the minimum score
+of 40 that a foundational practice must reach, the caps of 60 to 70 that the gates
+apply, the maximum maturity gap of two, and the five-point penalty. These values
+come from Wavestone expert judgement rather than from a calibration on data. They
+live in the referential, so any of them can be adjusted through a version bump, but
+their exact figures are the weakest empirical point of the model. A natural next step
+would be a sensitivity analysis, showing how much the global score moves when a cap
+or a threshold is shifted, so that the numbers can be discussed on evidence instead
+of on authority alone.
+
+A second choice worth stating openly is that the consistency penalty compares
+effective maturity, measured after the evidence cap. A practice that is rated highly
+but backed by weak evidence is capped, and can therefore trigger a penalty against a
+better-evidenced neighbour. This is deliberate: the model rewards maturity that can
+be demonstrated rather than merely declared. It deserves to be said out loud, because
+comparing declared maturity instead is equally easy to implement and would simply
+need a different justification.
+
+A few smaller decisions are of the same kind. The four phases carry equal weight, a
+structural choice that stops Preparedness and its nine best practices from drowning
+out the two-practice phases; that weighting is now read from the referential, so a
+later version could revisit it. The penalty threshold is strict, so a gap of exactly
+two levels does not penalise while a gap just above it does. The global score is
+rounded to the nearest even value at the level boundaries. None of these is
+controversial on its own, yet each is a decision a careful reader could question, so
+each is documented and covered by a test instead of left implicit.
+
+One behaviour deserves a direct caveat for anyone reading a generated report. Since
+an N/A best practice leaves its phase entirely, marking both practices of a short
+phase as N/A makes that phase drop out of the global score rather than scoring zero.
+That is consistent with treating N/A as neutral, but it means a result has to be read
+as a phase that was not assessed, rather than a phase that scored nothing, and the
+interface has to carry that distinction so a reader is never misled.
+
+Set against these limits, the two properties the chapter opened with are what give
+the engine value beyond this single project. Because the score is deterministic and
+fully traced, the AI layer added in Chapter~\ref{chap:platform} can be held to a
+strict and safe role: it reads the \texttt{AssessmentResult} and the referential to
+phrase recommendations for the weakest best practices, it is given only scores,
+best-practice identifiers and referential text, never client names or the private
+N/A justifications, and any failure on its side degrades to a deterministic
+recommendation drawn from the referential. The engine remains the single arbiter of
+the numbers, and the parts of the model that stay matters of judgement are exactly
+the ones Chapter~\ref{chap:pm} returns to with the benefit of hindsight.
+
+
+% =====================================================================
+%  Fin du chapitre 5
+% =====================================================================

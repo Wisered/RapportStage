@@ -1,0 +1,428 @@
+\chapter{Platform Architecture and Implementation}
+\label{chap:platform}
+
+This chapter explains how the scoring engine presented in Chapter~\ref{chap:scoring-engine} is embedded in a complete, secure and deployable application. The engine itself is treated as a black box here, frozen, audited and pure by construction (principle P1, Section~\ref{chap:method}); what this chapter narrates is everything that surrounds it. Section~\ref{sec:platform-architecture} lays out the overall layering. Sections~\ref{sec:platform-backend} and~\ref{sec:platform-frontend} cover the backend and the frontend in turn. Section~\ref{sec:platform-auth-security} is the largest of the six, it details the authentication model and the security measures built around it. Section~\ref{sec:platform-local-ai} explains how a local language model turns a computed result into a narrative without ever touching the score. Section~\ref{sec:platform-networking} closes the chapter with the operational choices, and one particular problem, that kept the stack working across a virtual machine boundary during development.
+
+% --------------------------------------------------------------
+\section{Overall architecture}
+\label{sec:platform-architecture}
+
+The platform is organised in four layers, shown in Figure~\ref{fig:platform-architecture-layers}. The frontend (Section~\ref{sec:platform-frontend}) is a Next.js client that renders the questionnaire and the results dashboard and never enforces access on its own. The backend API (Section~\ref{sec:platform-backend}) is a FastAPI application that exposes the HTTP surface, applies authentication and authorisation before any handler runs, and persists raw user input in SQLite. Between the API and the engine sits a single translation module, \texttt{\seqsplit{scoring\_bridge.py}}, described below. Downstream of the engine, a local AI layer (Section~\ref{sec:platform-local-ai}) reads the computed result and produces a narrative, without ever touching the score itself.
+
+This separation is not incidental. It extends to the rest of the application the same discipline that governs the engine's own design, and it rests on principle P4 (Section~\ref{chap:method}): the referential in \texttt{\seqsplit{referential.yaml}} is the single source of truth for the business rules, never duplicated in the database schema or in the frontend code.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=1.1cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    node distance=15mm and 28mm
+  ]
+
+  \node[box] (browser) {Browser};
+  \node[box, below=of browser] (frontend) {Frontend\\Next.js 14 (App Router)};
+  \node[box, below=of frontend] (backend) {Backend API\\FastAPI};
+  \node[box, right=of backend] (db) {SQLite\\(SQLAlchemy async + Alembic)};
+  \node[box, below=of backend] (bridge) {scoring\_bridge.py\\(translation seam)};
+  \node[box, below=of bridge] (engine) {Scoring engine\\(frozen, Ch.~5)};
+  \node[box, right=of bridge] (ai) {Local AI layer\\(Ollama)};
+
+  \draw[arr] (browser) -- (frontend);
+  \draw[arr] (frontend) -- (backend)
+    node[lbl, midway, right=2mm] {HTTP/JSON,\\session cookie};
+  \draw[arr] (backend) -- (db)
+    node[lbl, midway, above=2mm] {raw answers,\\BP annotations};
+  \draw[arr] (backend) -- (bridge)
+    node[lbl, midway, left=2mm] {stored\\Assessment};
+  \draw[arr] ([xshift=-6mm]bridge.south) -- ([xshift=-6mm]engine.north)
+    node[lbl, midway, left=2mm] {AssessmentInput};
+  \draw[arr] ([xshift=6mm]engine.north) -- ([xshift=6mm]bridge.south)
+    node[lbl, midway, right=2mm] {AssessmentResult};
+  \draw[arr, dashed] (bridge) -- (ai)
+    node[lbl, midway, above=2mm] {AssessmentResult,\\referential (read only)};
+
+  \end{tikzpicture}
+  \caption{Layered architecture of the platform, from the browser to the scoring engine and the local AI layer}
+  \label{fig:platform-architecture-layers}
+\end{figure}
+
+\subsection{Why the DB layer and the engine layer stay separate}
+
+The SQLAlchemy models that persist a questionnaire, \texttt{\seqsplit{Answer}} and \texttt{\seqsplit{BPAnnotation}}, store raw inputs only, and I kept them deliberately distinct from the engine's own Pydantic input models. A \texttt{\seqsplit{question\_id}} or a \texttt{\seqsplit{bp\_id}} is a plain string in the database, not a foreign key into the framework, because the framework lives in \texttt{\seqsplit{referential.yaml}} and not in the schema (P4). The database module never imports the engine, and the engine never imports the database module.
+
+I considered folding the two together, since both ultimately describe the same questionnaire, but rejected it: coupling persistence to the engine's models would let an unrelated schema change silently alter what the engine scores, and would make the engine depend on the database, which breaks the purity and the standalone testability that Chapter~\ref{chap:scoring-engine} establishes as non-negotiable. Keeping two layers costs one extra translation step, but it means a migration can evolve the schema without ever touching the scoring logic, and the engine's 70 tests keep running against nothing but Pydantic objects, with no database in sight.
+
+\subsection{The single translation seam: \texttt{scoring\_bridge.py}}
+
+That one extra translation step lives entirely in \texttt{\seqsplit{app/scoring\_bridge.py}}, the only module in the codebase that imports both the ORM models and the engine's input models. \texttt{\seqsplit{build\_assessment\_input}} maps a stored \texttt{\seqsplit{Assessment}}, with its answers and BP annotations eagerly loaded, to the engine's \texttt{\seqsplit{AssessmentInput}}, dropping any answer row that is structurally incomplete. A companion function, \texttt{\seqsplit{missing\_answers}}, precomputes the full list of gaps in one pass, so the API can report every missing answer to the user at once instead of stopping at the first one the engine happens to trip over.
+
+No scoring rule is reimplemented in this module. Concentrating the translation in one place is what makes the separation above actually hold in practice: the engine stays pure and unaware of the database, the storage layer stays unaware of scoring, and there is exactly one seam left to audit. A dedicated test, \texttt{\seqsplit{score\_test.py}}, cross-checks that seam end to end, from a stored assessment to a final score.
+
+% --------------------------------------------------------------
+\section{Backend}
+\label{sec:platform-backend}
+
+The backend is a FastAPI application backed by SQLite through an asynchronous SQLAlchemy 2.x stack, with Alembic managing every schema change. \texttt{\seqsplit{app/database.py}} builds the async engine (\texttt{\seqsplit{sqlite+aiosqlite}}, defaulting to a local \texttt{\seqsplit{crisis\_maturity.db}} file) and a single declarative base. I settled on this combination for an MVP with a short runway to the deadline: SQLite needs no separate infrastructure to run or to demonstrate, the asynchronous stack matches FastAPI's own request model rather than blocking it, and it pre-empts a planned migration to PostgreSQL later, since only the connection string would need to change. Alembic from the first commit means the schema is versioned and reproducible, \texttt{\seqsplit{alembic}} \texttt{\seqsplit{upgrade}} \texttt{\seqsplit{head}} rebuilds a fresh database from nothing, instead of relying on an implicit \texttt{\seqsplit{create\_all}}.
+
+\subsection{Data model and persistence}
+
+Five models carry the application's state: \texttt{\seqsplit{User}}, \texttt{\seqsplit{Organization}}, \texttt{\seqsplit{Assessment}}, \texttt{\seqsplit{Answer}} and \texttt{\seqsplit{BPAnnotation}}. An \texttt{\seqsplit{Assessment}} belongs to a \texttt{\seqsplit{User}} and, optionally, an \texttt{\seqsplit{Organization}}, and carries the \texttt{\seqsplit{referential\_version}} it was scored against together with a status (\texttt{\seqsplit{in\_progress}} or \texttt{\seqsplit{submitted}}). Each \texttt{\seqsplit{Answer}} row stores one declared maturity level and its evidence type for one question, and each \texttt{\seqsplit{BPAnnotation}} row stores whether a best practice was marked not applicable, with a justification. A unique constraint on \texttt{\seqsplit{(assessment\_id,}} \texttt{\seqsplit{question\_id)}} and on \texttt{\seqsplit{(assessment\_id,}} \texttt{\seqsplit{bp\_id)}} keeps an assessment from ever holding two conflicting answers to the same question, and indexes on \texttt{\seqsplit{Assessment.user\_id}}, \texttt{\seqsplit{organization\_id}} and \texttt{\seqsplit{status}} keep the per-owner listing queries (Section~\ref{sec:platform-auth-security}) cheap. The initial migration, \texttt{\seqsplit{b76d1f7e713a\_initial\_schema.py}}, creates all five tables at once with these constraints already in place.
+
+The \texttt{\seqsplit{User.role}} field started, at this stage of the project, with an \texttt{\seqsplit{anonymous}} default alongside \texttt{\seqsplit{respondent}}, \texttt{\seqsplit{consultant}} and \texttt{\seqsplit{admin}}, because the very first version of the backend had no login flow yet and issued an anonymous session to every visitor. Section~\ref{sec:platform-auth-security} explains how that stub was later replaced by real authentication, behind the same dependency signature, without touching this schema.
+
+\subsection{The score is computed on the fly, never stored}
+
+\texttt{\seqsplit{POST}} \texttt{\seqsplit{/api/assessments/\{id\}/score}} runs the engine and returns the serialized \texttt{\seqsplit{AssessmentResult}}, but it never writes it back to the database, and it leaves the assessment's status untouched. I considered caching the result for performance, since recomputation is not free, but a stored score can drift from its own inputs the moment an answer is edited or the referential is bumped to a new version, and a drifted score is exactly what the engine's determinism guarantee (P1, Section~\ref{chap:method}) exists to prevent. The result stays fully reproducible from the raw inputs plus the referential version, so recomputing it on every request is the only option that cannot go stale; a cache, if one is ever needed, would have to sit on top of that recomputation, never replace it. The same endpoint keeps user errors out of the \texttt{\seqsplit{5xx}} range: an incomplete questionnaire or an engine validation failure (\texttt{\seqsplit{NAValidationError}}) is surfaced as a \texttt{\seqsplit{422}}, not a server error.
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{1.3cm}p{5.6cm}p{2.1cm}p{4.0cm}@{}}
+    \toprule
+    Method & Path & Access & Purpose \\
+    \midrule
+    GET & \texttt{\seqsplit{/api/health}} & public & Liveness, referential version \\
+    GET & \texttt{\seqsplit{/api/referential}} & public & Full referential as JSON \\
+    POST & \texttt{\seqsplit{/api/auth/invitations}} & session + hierarchy & Issue a single-use invitation \\
+    POST & \texttt{\seqsplit{/api/auth/accept}} & public (token) & Activate an account, choose a password \\
+    POST & \texttt{\seqsplit{/api/auth/login}} & public & Password login \\
+    POST & \texttt{\seqsplit{/api/auth/logout}} & session & Destroy the session \\
+    GET & \texttt{\seqsplit{/api/me}} & session & Current authenticated user \\
+    POST & \texttt{\seqsplit{/api/assessments}} & session & Create a blank assessment owned by the caller \\
+    GET & \texttt{\seqsplit{/api/assessments}} & session (scoped) & List assessments visible to the caller \\
+    GET & \texttt{\seqsplit{/api/assessments/\{id\}}} & READ & Full editable working state \\
+    PUT & \texttt{\seqsplit{/api/assessments/\{id\}/answers/\{qid\}}} & WRITE & Idempotent autosave of one answer \\
+    PUT & \texttt{\seqsplit{/api/assessments/\{id\}/annotations/\{bp\_id\}}} & WRITE & Idempotent autosave of one N/A annotation \\
+    POST & \texttt{\seqsplit{/api/assessments/\{id\}/score}} & READ & Run the engine, return \texttt{\seqsplit{AssessmentResult}} \\
+    POST & \texttt{\seqsplit{/api/assessments/\{id\}/recommendations}} & READ & Narrative recommendations (AI or fallback) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Main API endpoints}
+  \label{tab:backend-api-endpoints}
+\end{table}
+
+% --------------------------------------------------------------
+\section{Frontend}
+\label{sec:platform-frontend}
+
+The frontend is a single Next.js 14 client using the App Router, written in strict TypeScript (no \texttt{\seqsplit{any}}, unused variables treated as errors by ESLint), styled with Tailwind and shadcn/ui, and charted with Recharts. \texttt{\seqsplit{lib/api.ts}} wraps every call to the backend behind a thin fetch helper that always sends \texttt{\seqsplit{credentials:}} \texttt{\seqsplit{'include'}}, so the session cookie set up in Section~\ref{sec:platform-auth-security} rides along automatically; Section~\ref{sec:platform-networking} comes back to a problem that this same setting caused once the frontend and the backend stopped sharing an origin.
+
+The independent audit of the scoring engine (Chapter~\ref{chap:scoring-engine}) had flagged one pitfall ahead of time for whoever built the frontend: \texttt{\seqsplit{ConsistencyPenalty.bp\_pair}} is a Python \texttt{\seqsplit{tuple[str,}} \texttt{\seqsplit{str]}} in the engine, but it serialises to a plain JSON array once it crosses \texttt{\seqsplit{GET}} \texttt{\seqsplit{/api/referential}}, so a strict TypeScript type has to read it as \texttt{\seqsplit{[string,}} \texttt{\seqsplit{string]}} and not the more natural \texttt{\seqsplit{string[]}}, or the typing guarantee is lost silently. The frontend honours this: \texttt{\seqsplit{bp\_pair}} is declared as the two-element tuple in \texttt{\seqsplit{frontend/lib/assessment.ts}}, not as \texttt{\seqsplit{string[]}}, and every consumer reads it positionally, \texttt{\seqsplit{bp\_pair[0]}} and \texttt{\seqsplit{bp\_pair[1]}} rather than iterating over it, so the anticipated pitfall never materialised in practice.
+
+\subsection{A per-phase questionnaire with idempotent autosave}
+
+The questionnaire is a per-phase flow, one screen per phase of the referential (Prevention, Preparedness, Response, Recovery), with best-practice-level N/A annotations, rather than one long form. Keeping each screen short was a deliberate choice against anti-pattern~9 (Chapter~\ref{chap:method}), and the four-phase split falls directly out of the referential's own structure, so the flow needed no separate design decision once the referential was loaded at startup. Saving an answer is idempotent by construction: the database enforces a unique constraint on the pair \texttt{\seqsplit{(assessment\_id,}} \texttt{\seqsplit{question\_id)}} (Section~\ref{sec:platform-backend}), so retrying the same save after a dropped connection cannot create a duplicate answer, it can only overwrite the previous value for that question.
+
+\subsection{Results dashboard}
+
+Once an assessment is complete, the results screen turns the computed \texttt{\seqsplit{AssessmentResult}} into a dashboard: a radar chart across the four phases, a bar per best practice, and a single headline score with its maturity level, shown in Figure~\ref{fig:frontend-dashboard}.
+
+\begin{figure}[ht!]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/dashboard-score-radar.png}\\[3mm]
+  \includegraphics[width=0.72\textwidth]{figures/dashboard-bp-bars.png}
+  \caption{Assessment results dashboard: global maturity score and radar chart by phase (top), bar chart by best practice with the foundational gates and consistency penalties that shaped the final score (bottom)}
+  \label{fig:frontend-dashboard}
+\end{figure}
+
+\subsection{No duplicated framework content, one token layer for theming}
+
+Every component that renders a question or a best-practice name fetches it from \texttt{\seqsplit{GET}} \texttt{\seqsplit{/api/referential}} rather than hardcoding it, the same P4 discipline (Chapter~\ref{chap:method}) applied to the frontend: the referential is read once, never copied into a component. Colour follows the same one-place principle, every colour in the interface lives in CSS custom properties in \texttt{\seqsplit{app/globals.css}}, so re-theming the whole application is a single-file edit. The palette itself is a violet-and-grey scheme inspired by Wavestone's identity, deliberately not copied from the official charter and using no Wavestone logo, which keeps the deliverable presentable to the company without misrepresenting a student project as an official Wavestone product.
+
+\subsection{i18n: English only, no locale routing (for now)}
+
+Text goes through \texttt{\seqsplit{next-intl}}, but the interface ships in English only, with no URL-prefixed locale routing such as \texttt{\seqsplit{/en}} or \texttt{\seqsplit{/fr}}. I considered adding routed locales from the start, since a consulting client base is not necessarily English-speaking, but rejected it as premature for a single-language MVP: every string already goes through a message key, so adding a second language later is a two-line change to a messages file, not a rewrite of any component. The cost of the full routing machinery is deferred until there is a second language to justify it.
+
+None of this is a security boundary. The interface hides screens a user should not see and redirects an unauthenticated visitor to the login page, but every protected call still stands on its own behind the checks described in Section~\ref{sec:platform-auth-security}; a user who reaches an endpoint directly gets exactly the same 401, 403 or 404 the backend would have returned anyway.
+
+% --------------------------------------------------------------
+\section{Authentication and security}
+\label{sec:platform-auth-security}
+
+Real authentication did not appear all at once. From the first sprint, the backend already carried a full users, organizations and roles schema, and every route already depended on \texttt{\seqsplit{Depends(get\_current\_user)}}; at that stage the dependency was a stub that read an opaque session cookie and silently created an anonymous \texttt{\seqsplit{User}} row on first contact (principle P5, Chapter~\ref{chap:method}). The stub existed precisely so that real authentication could later replace one function behind a fixed signature, not force a schema migration or a rewrite of every route. This section covers what replaced it: the invitation cascade that turns an email address into an account, the session model, the roles and the per-owner access control built on top of them, and the concrete security measures that follow from treating a platform handling client organisations' maturity data as something that has to defend itself.
+
+\subsection{Invitation cascade and account activation}
+
+Accounts are never created directly. An admin or a consultant issues a single-use invitation bound to one email address and one role; the recipient turns it into an account by choosing a password at \texttt{\seqsplit{POST}} \texttt{\seqsplit{/api/auth/accept}}. I call this option B: an invitation link that leads to a chosen password, as opposed to a passwordless magic link that would log the user in directly. The backend never sends an email itself, \texttt{\seqsplit{POST}} \texttt{\seqsplit{/api/auth/invitations}} returns the clear token exactly once and a human relays it out of band, shown in Figure~\ref{fig:auth-invitation-cascade}. I chose this over building an SMTP integration because the environment genuinely has none configured, and because the consulting workflow is human-driven anyway: a consultant already knows the client they are onboarding and can hand them a link directly. A pure magic link would have avoided a password entirely, but it gives no durable credential for a client who comes back a week later, so option B trades one extra step at signup for a normal login afterwards. The very first admin account is seeded the same way, by \texttt{\seqsplit{backend/bootstrap\_admin.py}}, which creates an admin invitation with \texttt{\seqsplit{invited\_by}} left \texttt{\seqsplit{NULL}}; every other account, including that first admin, is activated through the exact same \texttt{\seqsplit{accept\_invitation}} path, so there is only one place in the codebase that enforces the password policy and the bcrypt hashing described below.
+
+Who may invite whom is fixed as well: an admin can invite an admin, a consultant or a respondent; a consultant can only invite a respondent; a respondent invites nobody. The role on an activated account comes from the invitation itself, never from the accept request, so a recipient has no way to hand themselves a higher role than the one they were invited with. Invitations are also single-use and time-bounded, a consumed token or an expired one cannot be replayed, which closes off both reusing an old link and leaving a leaked one usable indefinitely.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
+    human/.style={draw, dashed, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    node distance=11mm
+  ]
+
+  \node[box] (s1) {Admin or consultant: POST /api/auth/invitations\\(email, role)};
+  \node[box, below=of s1] (s2) {Backend stores an \texttt{\seqsplit{Invitation}}, returns\\the clear token once};
+  \node[human, below=of s2] (s3) {Token relayed out of band, by a human\\(no email sent by the backend)};
+  \node[box, below=of s3] (s4) {Recipient: POST /api/auth/accept\\(token, chosen password)};
+  \node[box, below=of s4] (s5) {Backend creates the \texttt{\seqsplit{User}}, opens a session,\\sets the HttpOnly session cookie};
+
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4) -- (s5);
+
+  \end{tikzpicture}
+  \caption{Invitation cascade and account activation flow}
+  \label{fig:auth-invitation-cascade}
+\end{figure}
+
+\subsection{Server-side sessions, not JWT}
+
+Logging in, or accepting an invitation, opens a row in a \texttt{\seqsplit{sessions}} table and stores only the SHA-256 hash of an opaque random token; the clear token itself rides in an HttpOnly cookie, never reachable from JavaScript. \texttt{\seqsplit{get\_current\_user}} resolves that cookie to a session and then to a user on every request. The project brief mandated cookie sessions and ruled out JWT, and the case for it holds beyond the brief: a server-side store gives real revocation, logging out, or a future ``kill all sessions'' action, only has to delete the row, so a stolen or copied token dies immediately. A stateless JWT cannot do that without maintaining a blocklist, which is a server-side store by another name, so cookie sessions did not cost anything a JWT would have saved. Every session is also bounded by an \texttt{\seqsplit{expires\_at}}, regardless of whether it is ever explicitly revoked.
+
+The cookie itself carries three attributes together: HttpOnly (unreachable from JavaScript, closing off token theft through XSS), SameSite=Lax (a first line of defense against CSRF), and Secure, configurable and required in production to stop the cookie riding over plain HTTP. Section~\ref{sec:platform-networking} returns to what SameSite actually cost during development, once the frontend and the backend stopped being the same origin.
+
+\subsection{A problem encountered: passlib versus bcrypt}
+
+The first attempt at password hashing went through \texttt{\seqsplit{passlib}}, the usual wrapper library, and it broke immediately: \texttt{\seqsplit{passlib}} 1.7.4 is unmaintained and crashes against \texttt{\seqsplit{bcrypt}} 5.x, because it inspects a \texttt{\seqsplit{\_\_about\_\_.\_\_version\_\_}} attribute that no longer exists on the newer package. Rather than pin an old, unmaintained \texttt{\seqsplit{bcrypt}} version to keep \texttt{\seqsplit{passlib}} happy, I called \texttt{\seqsplit{bcrypt}} directly, \texttt{\seqsplit{hashpw}} and \texttt{\seqsplit{checkpw}}, and kept that call inside one small, unit-tested module, \texttt{\seqsplit{app/core/security.py}}. The session and invitation tokens, which are high-entropy random values rather than user-chosen passwords, are hashed with SHA-256 instead: a fast hash is the right tool for an unguessable random value, and \texttt{\seqsplit{bcrypt}}'s 72-byte input cap together with its per-hash salt would have made a simple equality lookup on a token impossible anyway.
+
+\subsection{Password policy and login hardening}
+
+Three more measures target the login path itself, beyond hashing. A password policy enforces a minimum length, a byte cap (bcrypt silently truncates past 72 bytes, so the policy has to reject what the hash would otherwise ignore), a check against a common-password blocklist, and a minimum character diversity. Every login attempt costs the same amount of work regardless of whether the email exists: an unknown email still runs a dummy bcrypt verification, and \texttt{\seqsplit{POST}} \texttt{\seqsplit{/api/auth/login}} returns one generic 401 in every failure case, wrong password, unknown email, or a locked account, so a caller cannot distinguish which one happened. After a fixed number of consecutive failures, the account locks for a fixed number of minutes. Together these close the two classic login-path vulnerabilities: account enumeration through timing or differential responses, and brute-force or credential-spraying against a valid account.
+
+\subsection{Roles and per-owner access control}
+
+By the time real authentication replaced the anonymous stub (Section~\ref{sec:platform-backend}), the role set had narrowed to three: admin, consultant and respondent. Read access is granted to the admin, to the owner of an assessment, or to the owner's consultant; write access is granted only to the admin or the owner, consultants are read-only on their clients' assessments, which matches an advisory role, a consultant guides, the client fills in. Every listing query is scoped in SQL rather than filtered after the fact, and the consultant-to-client link is derived from a single existing relationship, \texttt{\seqsplit{Invitation.invited\_by}} joined to the activated account by email, instead of a separate organisation or membership table. I preferred deriving the link from data that already existed over adding a new join table: it is the simplest model that expresses ``a consultant sees the clients they onboarded'' for an MVP, and a richer organisation structure can replace it later without changing the shape of the rule itself. The whole rule lives in one module, \texttt{\seqsplit{app/core/authz.py}}, applied as a FastAPI dependency ahead of every handler, which is a direct answer to OWASP A01, Broken Access Control: the access check that gets forgotten, or that quietly diverges between two endpoints, is overwhelmingly the usual way this category of vulnerability appears, and there is exactly one place to get it right instead of one per route.
+
+One edge case falls out of this rule on its own. Assessments created before authentication existed have no owner, \texttt{\seqsplit{user\_id}} is \texttt{\seqsplit{NULL}}, so they match none of the role-scoped read branches and surface only in the admin's unfiltered view. I left it that way rather than guessing an owner to reassign them to: defaulting ownerless data to admin-only is the most restrictive safe choice, and reassigning it by hand later is cheap, whereas a wrong automated guess would have created a silent cross-tenant exposure.
+
+\subsection{401 vs 403 vs 404: denying an existence oracle}
+
+The three denial codes are not interchangeable. A \texttt{\seqsplit{401}} means the caller is not authenticated at all. A \texttt{\seqsplit{403}} is used when the caller is authenticated but forbidden from an action on a resource they may legitimately know exists, a consultant attempting to write to a client's assessment, or inviting someone above their own role. A \texttt{\seqsplit{404}} is used uniformly for both an unknown id and a lack of read access. Returning \texttt{\seqsplit{403}} on a resource the caller can read but not write is honest, since they already know it exists; returning \texttt{\seqsplit{403}} on a resource they cannot even read would itself confirm that the id exists, which is exactly the information an outsider probing for valid assessment ids wants. Collapsing ``unknown'' and ``forbidden to read'' into the same \texttt{\seqsplit{404}} denies that oracle.
+
+\subsection{Defense in depth: the frontend never enforces access}
+
+Section~\ref{sec:platform-frontend} already noted that the interface only adapts to a role, it does not enforce one. The reasoning belongs here: a client-side guard is code a user controls and can simply skip, so it is not a security boundary by definition, and treating it as one would be a false sense of safety. \texttt{\seqsplit{lib/auth.ts}} mirrors the backend's role hierarchy purely to populate invitation dropdowns with the roles a given user is allowed to grant, and the backend re-checks that choice independently every time; the frontend's actual job is narrower, to avoid rendering a screen that would immediately fail against the checks above. The login and role-gated screens reuse the same design tokens introduced in Section~\ref{sec:platform-frontend} rather than a new colour scheme, which keeps them consistent with the rest of the interface at no extra cost.
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{3.6cm}p{4.4cm}p{4.6cm}@{}}
+    \toprule
+    Measure & Where & Risk mitigated \\
+    \midrule
+    bcrypt hashing (salted, adaptive cost, direct call) & \texttt{\seqsplit{security.hash\_password}} & Offline password cracking after a DB breach \\
+    Password policy (length, byte cap, blocklist, diversity) & \texttt{\seqsplit{security.validate\_password\_policy}} & Weak/guessable credentials; bcrypt's silent truncation \\
+    Plaintext never stored & \texttt{\seqsplit{User.password\_hash}} & Credential disclosure on data-at-rest leak (P3) \\
+    256-bit tokens, stored only as SHA-256 & \texttt{\seqsplit{security.generate\_token}} & Token guessing; theft via DB read \\
+    Single-use, expiring invitations & \texttt{\seqsplit{Invitation}} & Link replay; long-lived leaked links \\
+    Anti-enumeration (dummy verify, generic 401) & \texttt{\seqsplit{authenticate}} & Account enumeration via timing/response \\
+    Brute-force lockout & \texttt{\seqsplit{User.failed\_login\_count}} & Password brute-forcing / spraying \\
+    Server-side sessions, revoked on logout & \texttt{\seqsplit{Session}} & Session persistence after logout \\
+    HttpOnly / SameSite=Lax / Secure cookie & \texttt{\seqsplit{deps.set\_session\_cookie}} & XSS token theft, CSRF, sniffing over HTTP \\
+    Centralized access control & \texttt{\seqsplit{authz.py}} & OWASP A01, Broken Access Control; IDOR \\
+    Invitation role hierarchy, no self-elevation & \texttt{\seqsplit{authz.can\_invite\_role}} & Privilege escalation via invitations \\
+    Listing scoped in SQL & \texttt{\seqsplit{crud.list\_visible\_assessments}} & Cross-tenant exposure / paging past scope \\
+    Uniform 404 policy & \texttt{\seqsplit{authz}} dependencies & Resource-existence disclosure \\
+    No PII to the LLM, N/A never logged & \texttt{\seqsplit{app/llm/recommendations.py}} & Sensitive-data leakage to AI layer / logs \\
+    \bottomrule
+  \end{tabular}
+  \caption{Security measures and the risks they mitigate}
+  \label{tab:auth-owasp-measures}
+\end{table}
+
+% --------------------------------------------------------------
+\section{Local AI integration}
+\label{sec:platform-local-ai}
+
+The AI layer sits strictly downstream of the engine. Per the referential's own \texttt{\seqsplit{ai\_module\_scope}} (\texttt{\seqsplit{scoring\_role:}} \texttt{\seqsplit{none}}), it reads a fully-computed \texttt{\seqsplit{AssessmentResult}} and produces text only: an executive synthesis, a top three-to-five list of prioritised actions, and best-practice-specific recommendations enriched beyond the referential's static fallbacks. It never modifies a score or overrides a deterministic calculation, never infers or imputes a missing answer, and the same scoring input must always yield the same scoring output regardless of what the model does, which is exactly what anti-pattern~3 (Chapter~\ref{chap:method}, letting a non-deterministic component touch a number that has to be defensible) is avoided by construction rather than by discipline. \texttt{\seqsplit{app/llm/}} talks to Ollama's \texttt{\seqsplit{/api/generate}} directly over \texttt{\seqsplit{httpx}}, with no framework in between, consistent with anti-pattern~2 as well.
+
+\subsection{Model choice: qwen2.5:3b, and the arbitration against a 7B}
+
+The referential's \texttt{\seqsplit{ai\_module\_scope}} lists four candidate models, \texttt{\seqsplit{mistral:7b-instruct}}, \texttt{\seqsplit{mixtral:8x7b}}, \texttt{\seqsplit{llama3.1:8b}} and \texttt{\seqsplit{qwen2.5:7b}}, all in the 7 to 8 billion parameter range. Ollama actually runs \texttt{\seqsplit{qwen2.5:3b}} by default. The arbitration criterion was latency, not quality in the abstract: the demo runs on CPU inside the VirtualBox VM described in Section~\ref{sec:platform-networking}, and a 7B model's generation time there makes the recommendations endpoint impractical, several minutes for a single request. \texttt{\seqsplit{qwen2.5:3b}} keeps generation to roughly a minute while still producing a usable narrative, because the task the model is actually given is constrained, summarising and enriching a handful of pre-supplied recommendations for the weak best practices, not open-ended reasoning from scratch. The model is one environment variable away from being swapped once a GPU or a larger machine is available; a proper benchmark across the candidate models remains future work rather than something this MVP needed to settle.
+
+\begin{table}[ht!]
+  \centering
+  \small
+  \begin{tabular}{@{}llp{3.1cm}p{3.6cm}@{}}
+    \toprule
+    Model & Size & Approx. generation time (CPU, in VM) & Status \\
+    \midrule
+    \texttt{\seqsplit{qwen2.5:3b}} & 3B & about 1 minute & Deployed (default) \\
+    \texttt{\seqsplit{mistral:7b-instruct}} & 7B & several minutes & Candidate, rejected on latency \\
+    \texttt{\seqsplit{mixtral:8x7b}} & 8x7B (MoE) & not benchmarked & Candidate \\
+    \texttt{\seqsplit{llama3.1:8b}} & 8B & not benchmarked & Candidate \\
+    \texttt{\seqsplit{qwen2.5:7b}} & 7B & not benchmarked & Candidate \\
+    \bottomrule
+  \end{tabular}
+  \caption{Local model candidates and the arbitration criterion}
+  \label{tab:ai-model-comparison}
+\end{table}
+
+\subsection{Anti-hallucination guardrails}
+
+Three separate guardrails keep the model from inventing something a consultant could not defend in front of a client. The prompt anchors the model to the exact best-practice ids the referential defines, and it carries no personally identifiable information at all, no organisation name, no identifiers, and no N/A justification text, which is principle P3 (Chapter~\ref{chap:method}) applied specifically to what leaves the local boundary. On the way back, the parser canonicalises the \texttt{\seqsplit{bp\_id}} variants the model might produce and discards outright any recommendation that cites a best practice outside the referential; a fused id such as \texttt{\seqsplit{BP123}} is rejected rather than guessed apart into, say, \texttt{\seqsplit{BP1}} and \texttt{\seqsplit{BP23}}, because a wrong guess would be worse than dropping the recommendation entirely.
+
+The scoring engine's independent audit (Chapter~\ref{chap:scoring-engine}) had flagged this exact boundary as worth testing explicitly, ahead of the AI layer being built. The guarantee turned out to be structural rather than a precaution taken only inside the prompt builder: \texttt{\seqsplit{na\_justification}} exists solely on \texttt{\seqsplit{BPAnnotation}}, the engine's input side, and the output types the engine actually returns, \texttt{\seqsplit{AssessmentResult}} and \texttt{\seqsplit{BPResult}} in \texttt{\seqsplit{app/scoring/models/outputs.py}}, carry no such field, no organisation name and no personal identifier. \texttt{\seqsplit{build\_prompt}} (\texttt{\seqsplit{app/llm/recommendations.py}}) only ever receives that computed result together with the referential, never the raw \texttt{\seqsplit{Assessment}}, \texttt{\seqsplit{Organization}} or \texttt{\seqsplit{User}} row, so there is no code path left for a justification to reach the model even by accident. Three tests in \texttt{\seqsplit{backend/tests/test\_llm\_privacy.py}} lock this down without calling Ollama: one runs a real \texttt{\seqsplit{AssessmentInput}} carrying a sentinel value inside an N/A justification through \texttt{\seqsplit{score\_assessment}} and then \texttt{\seqsplit{build\_prompt}}, and asserts the sentinel appears in neither the prompt nor the serialized result; a second asserts structurally that \texttt{\seqsplit{AssessmentResult}} declares no organisation, client name or identifier field at all; a third combines several sentinel types at once to cover more than one category of sensitive data in a single pass. All 141 backend tests pass, including these three, and none of them found a leak. The guarantee depends on the output schema staying narrow, a property the second test locks in place, and should be read as conditional on that schema rather than as an unconditional property of the system.
+
+\subsection{Deterministic fallback}
+
+On any failure from the model, Ollama unreachable, a timeout, or output the parser cannot make sense of, the endpoint degrades to the referential's own static \texttt{\seqsplit{fallback\_recommendation\_when\_low\_maturity}} text for each weak best practice, and reports \texttt{\seqsplit{source="fallback"}} so the frontend can be honest about where the text came from (Figure~\ref{fig:ai-pipeline}). The score itself is never at the mercy of this: it is computed and returned by the engine regardless of whether the narrative generation succeeds. The same property is what lets the backend's test suite, and the end-to-end smoke test, run without a live model at all; the fallback path is exercised directly rather than skipped.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=5.4cm, minimum height=1.15cm, font=\small},
+    fbox/.style={draw, dashed, rounded corners, align=center, minimum width=4.8cm, minimum height=1.3cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    farr/.style={-{Straight Barb[angle=60:2mm]}, thick, dashed},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    node distance=13mm and 46mm
+  ]
+
+  \node[box] (result) {AssessmentResult + referential text\\(computed, read only)};
+  \node[box, below=of result] (prompt) {Prompt builder\\(BP ids only, no PII)};
+  \node[box, below=of prompt] (ollama) {Ollama \texttt{\seqsplit{/api/generate}}\\(qwen2.5:3b)};
+  \node[box, below=of ollama] (parser) {Parser\\(canonicalize bp\_id, discard unknown BP)};
+  \node[box, below=of parser] (ui) {UI: narrative and recommendations};
+
+  \node[fbox, right=of prompt, yshift=-8mm] (fallback) {Referential static fallback\\(\texttt{\seqsplit{source="fallback"}})};
+
+  \draw[arr] (result) -- (prompt);
+  \draw[arr] (prompt) -- (ollama);
+  \draw[arr] (ollama) -- (parser);
+  \draw[arr] (parser) -- (ui);
+
+  \draw[farr] (ollama.east) -- (fallback.south west)
+    node[lbl, pos=0.12, above right] {unreachable or timeout};
+  \draw[farr] (parser.east) -- (fallback.south east)
+    node[lbl, pos=0.12, below right] {unparseable output};
+  \draw[farr] (fallback.west) -- ++(-6mm,0) |- (ui.east);
+
+  \end{tikzpicture}
+  \caption{Local AI pipeline, from computed result to narrative, with the deterministic fallback path}
+  \label{fig:ai-pipeline}
+\end{figure}
+
+\subsection{Asynchronous UX for a slow local model}
+
+Because a single generation takes roughly a minute, the results page cannot simply await it inline. Generated recommendations are cached in memory only, inside a React context living in the root layout, explicitly not \texttt{\seqsplit{localStorage}} or \texttt{\seqsplit{sessionStorage}}. The cache is keyed once per assessment id and reused across navigation within the same browser session, so moving between the dashboard and a detail view does not re-trigger generation, while a full page reload does. I chose in-memory over persisting across reloads for the same reason the score itself is recomputed rather than stored (Section~\ref{sec:platform-backend}): the narrative is reproducible on demand, and persisting it risks showing a stale text once the underlying answers have changed. In-memory caching is the lightest option that removes the one-minute wait from every navigation without introducing a second staleness problem alongside the one the engine already avoids.
+
+% --------------------------------------------------------------
+\section{Networking and operational choices}
+\label{sec:platform-networking}
+
+The dev and demo setup does not run everything on the same host. The frontend and the backend run inside a VirtualBox NAT virtual machine, while the local model, Ollama, runs on the Windows host that hosts the VM. That single fact, three processes instead of one shared \texttt{\seqsplit{localhost}}, is the source of every problem in this section: three settings that have to agree, a topology that has to be understood before either of them can be fixed, one debugging story, and a fixed procedure for the one thing that reliably breaks on every VM restart.
+
+\subsection{Three links that must agree}
+
+Three settings have to agree at once for a request to make it from a browser to the engine and back: where the frontend believes the backend is, which origins the backend accepts requests from, and where the backend believes Ollama is. Table~\ref{tab:network-links} lists all three, where each is set, and its default. Two further settings matter without being part of the wiring itself: \texttt{\seqsplit{OLLAMA\_MODEL}} (the model name, \texttt{\seqsplit{qwen2.5:3b}} by default, Section~\ref{sec:platform-local-ai}) and \texttt{\seqsplit{OLLAMA\_TIMEOUT\_SECONDS}} (300 by default, generous because CPU inference is slow). When all three processes run on one host, the defaults already agree and nothing needs changing; the VirtualBox setup below is the case where they do not.
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{3.4cm}p{3.0cm}p{3.2cm}p{4.2cm}@{}}
+    \toprule
+    Link & Setting & Where & Default \\
+    \midrule
+    Frontend $\rightarrow$ backend & \texttt{\seqsplit{NEXT\_PUBLIC\_API\_URL}} & \texttt{\seqsplit{frontend/.env.local}} & \texttt{\seqsplit{http://localhost:8000}} \\
+    Backend allows frontend origin (CORS) & \texttt{\seqsplit{cors\_origins}} & \texttt{\seqsplit{backend/app/config.py}} & includes \texttt{\seqsplit{localhost:3000}}, \texttt{\seqsplit{127.0.0.1:3000}} \\
+    Backend $\rightarrow$ Ollama & \texttt{\seqsplit{OLLAMA\_BASE\_URL}} & env / \texttt{\seqsplit{backend/app/config.py}} & \texttt{\seqsplit{http://127.0.0.1:11434}} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Network links between frontend, backend and Ollama}
+  \label{tab:network-links}
+\end{table}
+
+\subsection{VirtualBox NAT VM topology}
+
+Figure~\ref{fig:network-topology} shows the actual topology. From inside a NAT VM, the host machine is reachable at the fixed alias \texttt{\seqsplit{10.0.2.2}}, so the backend reaches Ollama at \texttt{\seqsplit{http://10.0.2.2:11434}} rather than \texttt{\seqsplit{127.0.0.1}}. That address only works if Ollama is actually listening on every interface on the Windows side, its default binds to loopback only, so \texttt{\seqsplit{OLLAMA\_HOST}} has to be set to \texttt{\seqsplit{0.0.0.0:11434}} and the service restarted, otherwise it only answers the host's own requests and the VM's calls time out. The committed default in \texttt{\seqsplit{config.py}} documents \texttt{\seqsplit{10.0.2.2}} but is overridden to \texttt{\seqsplit{127.0.0.1}} for fully-local runs; the environment variable is what should change between environments, never the committed file, so switching deployment targets is never a reason to edit code.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=4.4cm, minimum height=1.1cm, font=\small, fill=white},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    container/.style={draw, dashed, rounded corners, inner sep=7mm},
+    node distance=20mm and 24mm
+  ]
+
+  \node[box] (browser) {Browser};
+  \node[box, below=of browser] (frontend) {Frontend\\:3000};
+  \node[box, below=of frontend] (backend) {Backend API\\:8000};
+  \node[box, right=of backend, xshift=18mm] (ollama) {Ollama\\listening on 0.0.0.0:11434};
+
+  \node[container, fit=(frontend)(backend), label={[font=\small]above:VirtualBox NAT VM}] (vmbox) {};
+  \node[container, fit=(ollama), label={[font=\small]above:Windows host}] (hostbox) {};
+
+  \draw[arr] (browser) -- (frontend) node[lbl, pos=0.8, right=2mm] {VM's LAN IP\\:3000};
+  \draw[arr] (frontend) -- (backend) node[lbl, midway, right=2mm] {\texttt{\seqsplit{NEXT\_PUBLIC\_API\_URL}}};
+  \draw[arr] (backend) -- (ollama) node[lbl, midway, above, sloped] {\texttt{\seqsplit{10.0.2.2:11434}} (NAT alias)};
+
+  \end{tikzpicture}
+  \caption{Network topology: VirtualBox NAT VM and the Windows host}
+  \label{fig:network-topology}
+\end{figure}
+
+\subsection{A problem encountered: the SameSite cross-origin cookie, and the same-origin proxy fix}
+
+The symptom appeared only when the browser ran on Windows, reaching the VM through the port-forwarded NAT setup. After creating an account or logging in, \texttt{\seqsplit{POST}} \texttt{\seqsplit{/api/auth/accept}} (or \texttt{\seqsplit{/login}}) returned a clean 200, the account existed on the backend, and the response carried a \texttt{\seqsplit{Set-Cookie}} header. The very next request, \texttt{\seqsplit{GET}} \texttt{\seqsplit{/api/me}}, came back 401. The frontend concluded nobody was logged in and bounced back to \texttt{\seqsplit{/login}}, so \texttt{\seqsplit{/assessments}} was never reachable. The cookie was issued, but the browser never sent it back.
+
+The browser's own DevTools carried the full diagnosis. The Network tab, on the \texttt{\seqsplit{accept}} or \texttt{\seqsplit{login}} response, showed an explicit warning on the \texttt{\seqsplit{Set-Cookie}} header: \emph{this attempt to set a cookie via a Set-Cookie header was blocked because it had the SameSite=Lax attribute but came from a cross-site response which was not the response to a top-level navigation}. Decoded, that meant the cookie carried \texttt{\seqsplit{SameSite=Lax}}, set deliberately for security (Section~\ref{sec:platform-auth-security}), but the browser treated frontend and backend as two distinct sites because they sat on different ports; under \texttt{\seqsplit{SameSite=Lax}}, a cookie from a cross-site response is only accepted on a top-level navigation, a clicked link that changes the URL, never on a background \texttt{\seqsplit{fetch}} such as this login call. The cookie was rejected at the point it was set, confirmed by the Application tab showing nothing stored at all. A second, hidden cause made it worse: a line left in \texttt{\seqsplit{.env.local}} on the VM, \texttt{\seqsplit{NEXT\_PUBLIC\_API\_URL=http://127.0.0.1:8000}}, gitignored and specific to that machine, forced the frontend to call the backend by an absolute cross-origin URL, which guaranteed the cross-site behaviour. It also explained why the bug never showed up on my own machine, where that line was simply absent.
+
+The fix removes the cross-origin condition itself rather than weakening the cookie, across three small changes, all on the frontend. A Next.js proxy, added as \texttt{\seqsplit{rewrites}} in \texttt{\seqsplit{frontend/next.config.mjs}}, relays every \texttt{\seqsplit{/api/:path*}} request from the frontend to the backend:
+
+\begin{lstlisting}[caption={Same-origin proxy via Next.js rewrites}, label={lst:nextjs-rewrites}]
+async rewrites() {
+  return [
+    { source: "/api/:path*", destination: `${backend}/api/:path*` },
+  ];
+}
+\end{lstlisting}
+
+with \texttt{\seqsplit{backend}} read from a \texttt{\seqsplit{BACKEND\_ORIGIN}} environment variable (default \texttt{\seqsplit{http://localhost:8000}}), so the target is configurable rather than hardcoded; the relay runs server-side, inside Next.js, and is invisible to the browser. Second, \texttt{\seqsplit{frontend/lib/api.ts}} now resolves its base URL to an empty string by default, \texttt{\seqsplit{process.env.NEXT\_PUBLIC\_API\_URL}} \texttt{\seqsplit{??}} \texttt{\seqsplit{""}}, so every call goes out as a relative \texttt{\seqsplit{/api/...}} path against the frontend's own origin and is picked up by the proxy; the explicit override still exists for a deployment where the frontend would legitimately call a same-site backend directly. Third, the trapped \texttt{\seqsplit{.env.local}} line on the VM had to be removed, otherwise it would have kept forcing the absolute URL and the first two changes would have made no difference. The cookie itself was never touched: it stays \texttt{\seqsplit{HttpOnly;}} \texttt{\seqsplit{SameSite=Lax}}. I deliberately did not switch to \texttt{\seqsplit{SameSite=None}}, which would have required HTTPS and weakened the protection, and did not force HTTPS in development either; the cause was the cross-origin call, not the cookie policy, so that is what got fixed.
+
+Figure~\ref{fig:samesite-fix} summarises the change. Once the browser sees a single origin, \texttt{\seqsplit{localhost:3000}}, the login exchange is no longer cross-site, \texttt{\seqsplit{SameSite=Lax}} behaves as intended, the cookie is stored, and \texttt{\seqsplit{GET}} \texttt{\seqsplit{/api/me}} carries it back and returns 200; the redirect loop to \texttt{\seqsplit{/login}} disappeared and the full path, login, list, questionnaire, dashboard, works end to end. As a side effect, this same-origin topology is closer to a production deployment behind a single reverse-proxied domain than the two-port dev setup was, so the fix also removed a difference between dev and production rather than just papering over a local quirk. The files worth citing are \texttt{\seqsplit{frontend/next.config.mjs}} (the rewrites), \texttt{\seqsplit{frontend/lib/api.ts}} (the relative base URL), \texttt{\seqsplit{frontend/.env.example}} (documenting \texttt{\seqsplit{BACKEND\_ORIGIN}}), and the \texttt{\seqsplit{.env.local}} trap itself as the reason the bug was VM-specific.
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=3.2cm, minimum height=1.05cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    badarr/.style={-{Straight Barb[angle=60:2mm]}, thick, dashed},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    node distance=10mm and 20mm
+  ]
+
+  \node[box] (b_browser) {Browser};
+  \node[box, right=of b_browser] (b_frontend) {Frontend\\:3000};
+  \node[box, right=of b_frontend, xshift=8mm] (b_backend) {Backend\\:8000};
+
+  \draw[arr] (b_browser) -- (b_frontend);
+  \draw[badarr] (b_frontend) -- (b_backend)
+    node[lbl, midway, above] {absolute URL\\cross-origin};
+  \node[lbl, below=1mm of b_backend, text width=3.6cm] {Set-Cookie blocked:\\SameSite=Lax, cross-site};
+
+  \node[font=\small, above=6mm of b_frontend] {Before};
+
+  \node[box, below=28mm of b_browser] (a_browser) {Browser};
+  \node[box, right=of a_browser] (a_frontend) {Frontend\\:3000};
+  \node[box, right=of a_frontend, xshift=8mm] (a_backend) {Backend\\:8000};
+
+  \draw[arr] (a_browser) -- (a_frontend);
+  \draw[arr] (a_frontend) -- (a_backend)
+    node[lbl, midway, above] {\texttt{\seqsplit{next.config.mjs}}\\rewrites, server-side};
+  \node[lbl, below=1mm of a_backend, text width=3.6cm] {Cookie accepted:\\single origin, :3000 only};
+
+  \node[font=\small, above=6mm of a_frontend] {After};
+
+  \end{tikzpicture}
+  \caption{Before and after the same-origin proxy fix}
+  \label{fig:samesite-fix}
+\end{figure}
+
+\subsection{Recovering after a VM restart}
+
+The VM's LAN IP can change on every restart, which silently breaks both links above at once, since the frontend's target address and the backend's accepted origin both still point at the previous one. Rather than re-derive the fix each time, the procedure is fixed:
+\begin{enumerate}
+  \item read the new address with \texttt{\seqsplit{ip}} \texttt{\seqsplit{addr}} \texttt{\seqsplit{show}} \texttt{\seqsplit{|}} \texttt{\seqsplit{grep}} \texttt{\seqsplit{"inet}} \texttt{\seqsplit{"}} \texttt{\seqsplit{|}} \texttt{\seqsplit{grep}} \texttt{\seqsplit{-v}} \texttt{\seqsplit{127.0.0.1}};
+  \item update \texttt{\seqsplit{NEXT\_PUBLIC\_API\_URL}} in \texttt{\seqsplit{frontend/.env.local}} to the new address;
+  \item add the new address to \texttt{\seqsplit{cors\_origins}} in \texttt{\seqsplit{backend/app/config.py}};
+  \item restart both servers.
+\end{enumerate}
+Writing this down once, instead of re-deriving it after every restart, follows the same instinct as the architecture decisions log referenced throughout this chapter: a problem that will recur is worth documenting the first time it is solved, rather than solved silently and forgotten.

@@ -1,0 +1,391 @@
+% ============================================================
+% Chapter 4 -- Methodological Approach and Design Choices
+% File: chapters/chapter4.tex
+%
+% Preamble reminder for the main .tex (Rapport_Stage.tex):
+%   tnreport.cls ALREADY loads booktabs and tikz with the
+%   positioning/arrows.meta/fit libraries, no need to add them again.
+%   The only addition needed is the "backgrounds" tikz library, used
+%   for the dashed stage boxes in the Section 4.2 figure:
+%     \usetikzlibrary{backgrounds}
+%   Also confirm \usepackage{seqsplit} is loaded somewhere in the
+%   preamble (used here for long code identifiers such as file and
+%   module names, so they can break across lines inside \texttt{}).
+%
+% Included from the main file as:
+%   \input{chapters/chapter4}
+%   \cleardoublepage{}
+% ============================================================
+
+\chapter{Methodological Approach and Design Choices}
+\label{chap:method}
+
+This chapter states the approach that shaped every technical choice
+described later in this report. It sits between the problem statement
+developed in Chapter~\ref{chap:context} and the two chapters that describe
+how the platform was actually built, Chapter~\ref{chap:scoring-engine} on
+the scoring engine and Chapter~\ref{chap:platform} on the surrounding
+architecture. It appears here in the reading order, but I wrote it after
+those two chapters were already drafted, once the implementation had
+settled enough to state the reasoning behind it clearly, rather than as it
+was being discovered along the way.
+
+The chapter is organized in four parts. Section~\ref{sec:working-method}
+describes how the project was run sprint by sprint. Section~\ref{sec:core-idea}
+states the central design idea of the platform, the separation between
+deterministic scoring and AI augmentation, and why it answers the problem
+raised in the state of the art. Section~\ref{sec:principles} lists the five
+principles that were fixed early and never revisited. Section~\ref{sec:design-choices}
+details the main arbitrations made against that background, together with
+the alternatives that were considered and rejected.
+
+\section{Working method}
+\label{sec:working-method}
+
+The project was organized as a sequence of bounded sprints, each defined by
+a written brief and closed by an explicit Definition of Done. Sprint~0, for
+instance, listed eight verifiable conditions to meet before the sprint
+could be considered closed, from every scoring engine test passing to a
+clean \texttt{git status}, and stated explicitly what was left out of scope
+for that sprint. Closing a sprint meant checking that list item by item,
+instead of declaring the work finished by feel.
+
+This discipline was paired with a documentation-first habit, built around
+two documents. \texttt{\seqsplit{CLAUDE.md}} is the framing document for
+the whole project: it states the five inviolable principles discussed in
+Section~\ref{sec:principles}, the working method itself, down to the rule
+that an ambiguous sprint brief should be clarified before coding rather
+than settled by guessing, and a numbered list of anti-patterns to avoid,
+reproduced in Table~\ref{tab:anti-patterns} so that later chapters can
+refer to them by number instead of restating them.
+\texttt{\seqsplit{ARCHITECTURE.md}} is an append-only, dated log of the
+architectural decisions taken sprint after sprint, each entry recording
+both the decision and its justification. Both documents were written as
+the decisions were being made, which is why most of the justifications
+given in Section~\ref{sec:design-choices} are drawn directly from that log
+rather than reconstructed from memory for this report.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}cp{0.82\textwidth}@{}}
+    \toprule
+    \# & Anti-pattern \\
+    \midrule
+    1 & Reimplementing the scoring engine, its loader, or the backend layers instead of extending them. \\
+    2 & Introducing LangChain, LlamaIndex, or any AI framework on top of Ollama. \\
+    3 & Letting the AI compute or modify a score. \\
+    4 & Hardcoding referential text in Python or TypeScript instead of loading it. \\
+    5 & Reintroducing anonymous access or bypassing the centralized auth layer. \\
+    6 & Splitting the stack into microservices. \\
+    7 & Relying on implicit SQLAlchemy lazy loading where it can hide N+1 queries. \\
+    8 & Committing \texttt{\seqsplit{.env}} files or other secrets. \\
+    9 & Writing a frontend component longer than 200 lines. \\
+    10 & Reordering the scoring pipeline, or changing the referential's structure, without bumping its version. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Anti-patterns to avoid, as fixed in \texttt{CLAUDE.md}}
+  \label{tab:anti-patterns}
+\end{table}
+
+Development followed a test-driven approach wherever the scoring logic was
+involved. The engine carries seventy tests, including golden scenarios
+that double as an executable specification of the scoring rules, and it
+went through an audit that fed corrections back into the code before the
+engine was integrated into the backend. The audit was carried out by a
+separate, freshly initialized review with no prior exposure to the
+implementation, which is what makes it independent, rather than by a
+third-party reviewer. Its testing strategy and the audit itself are
+detailed in Chapter~\ref{chap:scoring-engine}, which this chapter does not
+repeat.
+
+Tooling choices, such as the backend and frontend stacks, follow from this
+method more than they define it, and are presented where they matter, in
+Chapter~\ref{chap:platform}.
+
+\section{The core idea: separating deterministic scoring from AI augmentation}
+\label{sec:core-idea}
+
+Two problems motivate the central design decision described in this
+section. The first is auditability: because the deliverable is meant to
+give a consultant a defensible, reproducible score to bring in front of a
+client, the computation itself cannot depend on anything that is not fully
+reproducible. The second is hallucination risk: Chapter~\ref{chap:state-of-the-art}
+identifies the tendency of large language models to produce plausible but
+false content as the main obstacle to their adoption in sensitive domains
+such as cyber crisis management. Both problems point to the same
+conclusion: whatever a language model contributes to this platform, it
+must never be allowed to touch the number that ends up in a client's
+report.
+
+The response is to split the system into two stages that never share write
+access to the score. A pure, deterministic engine consumes the assessment
+inputs together with the framework defined in the referential, and
+produces a fully computed result with no AI involvement at any point,
+following the determinism principle detailed in Section~\ref{principle:determinism}.
+Only once that result exists does a second, local language model read it
+to produce narrative text, an executive synthesis and a set of
+recommendations, and nothing else: the referential itself states this
+explicitly, marking the AI's scoring role as none. Splitting the pipeline
+this way addresses both problems at once. Auditability holds because the
+score is always reproducible from the raw inputs and the referential
+version alone, without ever invoking a non-deterministic component. The
+hallucination risk is contained rather than eliminated: the language model
+can still write something inaccurate, but the blast radius of that mistake
+is limited to a downstream text field that can be checked, regenerated, or
+replaced by a static fallback, and it can never reach back into the score
+itself. How that containment is implemented, the prompt guardrails and the
+fallback mechanism, belongs to Chapter~\ref{chap:platform} and this
+chapter does not repeat it.
+
+Figure~\ref{fig:scoring-ai-separation} illustrates the resulting pipeline.
+Assessment inputs flow into the deterministic engine, which produces the
+AssessmentResult; that result is then read, never written, by the local
+language model, which produces narrative output only. The diagram
+deliberately does not draw an arrow running back from the language model
+to the engine or to the score: nothing downstream of the score is allowed
+to influence it.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      node distance=0.9cm and 1.0cm,
+      box/.style={draw, rounded corners, align=center, minimum width=2.9cm, minimum height=1.05cm, font=\small},
+      arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+      lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+      stagelabel/.style={font=\footnotesize\itshape}
+    ]
+    \node[box] (inputs) {Assessment\\ inputs};
+    \node[box, right=of inputs] (engine) {Deterministic\\ scoring engine\\ \tiny (pure Python, P1)};
+    \node[box, right=of engine] (result) {AssessmentResult\\ \tiny (not stored)};
+
+    \node[box, below=1.7cm of engine] (llm) {Local LLM\\ \tiny (Ollama)};
+    \node[box, right=of llm] (narrative) {Narrative\\ output\\ \tiny (text only)};
+
+    \draw[arr] (inputs) -- (engine);
+    \draw[arr] (engine) -- (result);
+    \draw[arr] (result.south) .. controls +(0,-0.8) and +(0,0.8) .. node[lbl, right] {read-only} (llm.north);
+    \draw[arr] (llm) -- (narrative);
+
+    \begin{scope}[on background layer]
+      \node[draw, dashed, rounded corners, fit=(inputs)(engine)(result), inner sep=8pt, label={[stagelabel]above:Deterministic stage}] {};
+      \node[draw, dashed, rounded corners, fit=(llm)(narrative), inner sep=8pt, label={[stagelabel]below:AI augmentation stage}] {};
+    \end{scope}
+  \end{tikzpicture}
+  \caption{Separation between the deterministic scoring engine and the AI augmentation layer}
+  \label{fig:scoring-ai-separation}
+\end{figure}
+
+\section{Five inviolable principles}
+\label{sec:principles}
+
+The five principles listed in this section were fixed at the start of the
+project, stated together in a single reference document, and never
+revisited afterward. Table~\ref{tab:principles-summary} summarizes them;
+each is then justified in turn, together with a note on where it is
+enforced and where its consequences are detailed further in this report.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}p{0.32\textwidth}p{0.58\textwidth}@{}}
+    \toprule
+    Principle & Rationale \\
+    \midrule
+    P1 -- Deterministic scoring & The engine alone computes the score; the AI never touches it, so the result is always reproducible and auditable. \\
+    P2 -- Local-first & All language model inference runs on a local Ollama instance; no assessment data ever reaches an external API. \\
+    P3 -- Secure by design & Data sensitivity drives the architecture, from encryption at rest to input validation and a single access-control module. \\
+    P4 -- Single source of truth & \texttt{\seqsplit{referential.yaml}} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
+    P5 -- Auth schema from day one & The data model carries users, organizations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
+    \bottomrule
+  \end{tabular}
+  \caption{The five inviolable principles}
+  \label{tab:principles-summary}
+\end{table}
+
+\subsection{P1: Determinism}
+\label{principle:determinism}
+
+Given the same answers, the same evidence levels, and the same referential
+version, the scoring engine always returns the same score. The AI plays no
+part in this computation at any stage; it only operates downstream on a
+result that is already final. The guarantee matters beyond internal
+consistency: it is what lets a consultant defend a client's number in
+front of that same client, possibly months later, using the same rules
+against a different set of answers. The engine enforces this by
+construction, and a dedicated test compares two independent computations
+on the same inputs to catch any accidental regression. Section~\ref{sec:core-idea}
+already relied on this principle to justify separating scoring from AI
+augmentation; the engine's internals and the audit that verified the
+guarantee in practice are described in Chapter~\ref{chap:scoring-engine}.
+
+\subsection{P2: Local-first}
+\label{principle:local-first}
+
+All language model inference in this platform runs through a locally
+hosted Ollama instance. No assessment data is ever sent to an external
+API, whether OpenAI, Anthropic, or a cloud-hosted Mistral endpoint. This
+is a hard constraint rather than a preference for cost or latency reasons:
+the NIS2 directive discussed in Chapter~\ref{chap:context} pushes
+organizations toward demonstrable sovereignty over the data they process,
+and an assessment produced by this platform is, in effect, a detailed map
+of an organization's cyber weaknesses. Sending that map to a third-party
+API, however reputable, would undermine the very trust the platform is
+meant to build. Because inference stays local, no separate anonymization
+gateway is required to satisfy sovereignty; the remaining data-at-rest
+handling is covered under Section~\ref{principle:secure-by-design}. The
+consequence of this principle on model selection, and the alternative it
+ruled out, are developed in Section~\ref{sec:design-choices}.
+
+\subsection{P3: Secure by design}
+\label{principle:secure-by-design}
+
+The sensitivity of the data processed by the platform, effectively a
+structured account of an organization's crisis-management gaps, drives
+architectural choices beyond the local-first constraint of
+Section~\ref{principle:local-first}. Concretely, this means the database
+volume is encrypted at rest, free-text fields such as N/A justifications
+are never written to logs in clear text, all traffic runs over HTTPS in
+production, and every API boundary validates its input rather than
+trusting the caller. The same principle extends to the AI layer: the
+prompt sent to the local language model carries scores, best-practice
+identifiers, the rationale behind any gate or penalty applied, and
+referential text, but never an organization name, an identifier, or the
+content of a justification field. Access control
+follows the same logic, centralized in a single module rather than
+re-implemented per route, closing the kind of broken access control that
+OWASP lists as the most common web application weakness. The concrete
+mechanisms, encryption, logging discipline, and the access-control module,
+are described where they are implemented, in Chapter~\ref{chap:platform}.
+
+\subsection{P4: The referential as the single source of truth}
+\label{principle:referential-truth}
+
+The specification of the ENISA framework, its best practices, questions,
+weights, maturity scale, evidence caps, foundational gates, and
+consistency penalties, lives in a single YAML file at the root of the
+repository. Neither the scoring engine nor the frontend ever hardcodes a
+question, a weight, or a rule: the engine loads the file once through a
+single loader, and the frontend fetches the same content from the API
+rather than duplicating it. This matters for two reasons. First, it
+removes an entire class of bugs where the code and the framework silently
+drift apart, for instance a question rephrased in the interface but not in
+the engine's validation. Second, it makes the framework itself an
+auditable artifact: reviewing what the platform actually measures means
+reading one file, not reconstructing it from scattered pieces of code. Any
+change to the framework goes through that file and its version number,
+never through a code change alone. How this loading and validation is
+implemented is detailed in Chapter~\ref{chap:scoring-engine}, and how the
+frontend consumes it without duplication in Chapter~\ref{chap:platform}.
+
+\subsection{P5: Auth schema from day one}
+\label{principle:auth-schema}
+
+The data model has included users, organizations, roles, and the
+corresponding foreign keys on assessments since the very first sprint,
+well before any real authentication existed. Early on, the platform ran on
+an anonymous session stub that satisfied the same interface a real
+authenticated user would later have to satisfy. The principle paid off
+exactly as intended: when real authentication was built, the stub was
+replaced behind that same interface, and nothing downstream, including the
+assessment ownership model and the role checks, had to be reworked. The
+alternative, bolting the user and role concept onto the data model after
+the fact, would have meant migrating existing assessments and every query
+that touches them. The authentication flows that now sit behind this
+schema are described in Chapter~\ref{chap:platform}.
+
+\section{Key design choices and rejected alternatives}
+\label{sec:design-choices}
+
+Section~\ref{sec:principles} stated the five principles as constraints.
+This section shows three of the arbitrations they produced in practice:
+for each, I state the choice actually made, why the rejected alternative
+was genuinely tempting, and which principle it would have compromised.
+Table~\ref{tab:rejected-alternatives} summarizes the three below.
+
+\subsection{Cloud LLM API rejected for data sovereignty}
+
+A cloud-hosted large language model, whether from OpenAI, Anthropic, or
+Mistral's own hosted offering, would have been the easier route for the AI
+augmentation layer. These services expose considerably larger and more
+capable models than anything that can run on commodity hardware, need no
+local inference stack to install, monitor, or keep warm, and would likely
+have produced better narrative quality than what actually runs locally.
+That gap in capability is real, and Chapter~\ref{chap:platform} returns to
+it directly. It was set aside anyway because of Section~\ref{principle:local-first}:
+the NIS2 context described in Chapter~\ref{chap:context}, together with the
+sensitivity of assessment data, effectively a map of an organization's
+cyber weaknesses, rules out sending that data to a third party regardless
+of the quality gained. The choice of local inference over a cloud API was
+therefore imposed by the platform's subject matter rather than decided
+purely on technical merit.
+
+Once local inference was fixed, the sizing question reproduced a smaller
+version of the same trade-off. The referential lists several 7B-class
+candidates for the local model, \texttt{\seqsplit{mistral:7b-instruct}},
+\texttt{\seqsplit{mixtral:8x7b}}, \texttt{\seqsplit{llama3.1:8b}}, and
+\texttt{\seqsplit{qwen2.5:7b}}, none of which is what the platform actually
+runs: the model deployed is \texttt{\seqsplit{qwen2.5:3b}}, smaller than any
+of them. The choice was driven by latency rather than by a formal
+comparison of output quality, which \texttt{\seqsplit{CLAUDE.md}} itself
+defers to a later sprint. On the CPU-bound hardware used for the demo, a 7B model pushed a
+single recommendation request into multiple minutes, impractical for a
+live, client-facing tool, while the 3B model keeps generation to about a
+minute. The resulting quality loss was judged acceptable because the AI's
+task stays narrow, summarizing and enriching a fixed set of referential
+recommendations for a short list of weak best practices, rather than
+open-ended reasoning.
+
+\subsection{Heavy orchestration frameworks rejected}
+
+Frameworks such as LangChain or LlamaIndex are often the default choice
+for wiring a language model into an application: they bundle prompt
+templates, retrieval, memory, and agent loops behind a single API, and
+adopting one would have saved a little boilerplate around the call to
+Ollama. They were rejected in favor of a direct, thin HTTP client that
+posts to Ollama's own generation endpoint and normalizes every transport
+failure into a single error type. The motivation goes beyond a general
+dislike of dependencies: a framework interposes a layer of abstraction
+between the request and the response that is harder to test, harder to
+reason about when something goes wrong during a live demonstration, and
+harder to explain precisely to a jury asking what the AI layer actually
+does with a prompt. Section~\ref{principle:secure-by-design} depends on
+being able to state exactly what goes into the model and what comes out of
+it, since that is what keeps the no-PII guarantee on the prompt verifiable;
+a direct call keeps that statement true by construction, whereas a
+framework would require trusting that it adds nothing unexpected on either
+side.
+
+\subsection{Scoring logic kept out of the API routes}
+
+The most direct way to expose a score over the API would have been to let
+each route that needs one build the engine's input structure locally and
+call the scoring functions itself, especially once a second consumer
+needed the same translation: the recommendations endpoint requires the
+same freshly computed \texttt{\seqsplit{AssessmentResult}} as the score
+endpoint itself, only to build a prompt from it instead of to serve it
+directly. That path was rejected in favor of a single
+bridge module that is the only place in the codebase allowed to translate
+a stored assessment into the engine's input type and to call the engine.
+Every route that needs a score goes through that one seam. The reason is
+Section~\ref{principle:determinism}: two independent translations from the
+database to the engine's input would eventually drift apart, for instance
+one route dropping an incomplete answer differently from another, and the
+platform would then be able to produce two different scores for the same
+assessment depending on which endpoint computed it. A single bridge,
+cross-checked in an end-to-end test against the engine called directly on
+the same inputs, makes that kind of silent divergence structurally
+impossible rather than merely unlikely.
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}p{0.3\textwidth}p{0.32\textwidth}p{0.18\textwidth}@{}}
+    \toprule
+    Choice made & Alternative rejected & Principle(s) \\
+    \midrule
+    Local inference via Ollama & Cloud LLM API (OpenAI, Anthropic, Mistral) & P2 \\
+    Direct HTTP client to Ollama & Orchestration framework (LangChain, LlamaIndex) & P3 \\
+    Single \texttt{\seqsplit{scoring\_bridge.py}} translation seam & Scoring logic duplicated across API routes & P1 \\
+    \bottomrule
+  \end{tabular}
+  \caption{Summary of key design choices and rejected alternatives}
+  \label{tab:rejected-alternatives}
+\end{table}
