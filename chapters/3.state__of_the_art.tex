@@ -5,23 +5,47 @@
 
 The notion of maturity model in cybersecurity inherits from the Capability Maturity Model (CMM) tradition originating in software engineering, which staged organisational capability across discrete levels: initial, repeatable, defined, managed, optimising. Applied to cybersecurity, maturity models translate a body of best practices into an instrument that allows an organisation to estimate where it currently stands and where it should aim. Three families of such instruments are relevant for this work.
 
-A first family covers general cybersecurity maturity tools developed and maintained by major standards bodies. The most widely cited is the NIST Cybersecurity Framework (CSF), structured around five functions, Identify, Protect, Detect, Respond, Recover, each broken down into categories and subcategories. NIST CSF self-assessments are pervasive in the industry but cover cybersecurity as a whole rather than crisis management specifically \cite{nist_csf2_2024}. ISACA's CMMI Cybermaturity Platform takes a comparable but proprietary approach, scoring organisations across more than 1,800 practices spanning people, processes and technology \cite{isaca_cmmi_cybermaturity}. Both tools are broad and powerful but treat crisis management as one dimension among many, rather than as a discipline with its own lifecycle and requirements.
+\subsection{General standards-body tools}
+\label{sec:soa-standards-bodies}
+
+This first family covers general cybersecurity maturity tools developed and maintained by major standards bodies. The most widely cited is the NIST Cybersecurity Framework (CSF), structured around five functions, Identify, Protect, Detect, Respond, Recover, each broken down into categories and subcategories. NIST CSF self-assessments are pervasive in the industry but cover cybersecurity as a whole rather than crisis management specifically \cite{nist_csf2_2024}. ISACA's CMMI Cybermaturity Platform takes a comparable but proprietary approach, scoring organisations across more than 1,800 practices spanning people, processes and technology \cite{isaca_cmmi_cybermaturity}. Both tools are broad and powerful but treat crisis management as one dimension among many, rather than as a discipline with its own lifecycle and requirements.
+
+\subsection{Sector- and regulation-specific tools}
+\label{sec:soa-sector-specific}
 
 A second family covers sector- or regulation-specific maturity tools. The U.S. Federal Financial Institutions Examination Council (FFIEC) Cybersecurity Assessment Tool combines an inherent risk profile with a maturity assessment tailored to financial institutions \cite{ffiec_cat_2017}. Such tools are influential within their target sector but explicitly tied to one regulatory context, which makes them ill-suited for cross-sector European use under NIS2 \cite{nis2_directive_2022}.
 
+\subsection{Academic maturity frameworks}
+\label{sec:soa-academic-frameworks}
+
 A third family covers academic maturity frameworks that aim either to refine the methodological foundations of maturity assessment or to address specific gaps in existing tools. Almomani et al. proposed a Cybersecurity Maturity Assessment Framework for higher education institutions in Saudi Arabia, mapping local and international standards into a self-assessment tool \cite{almomani2021cybersecurity}. Closer to the European regulatory landscape, the Cybersecurity Maturity Assessment Framework (CMAF) was designed explicitly to align with the original NIS Directive, consisting of twenty security categories scored on six maturity levels \cite{drivas2020nis}. These academic contributions provide methodological rigour but remain frameworks rather than deployed tools.
 
-Across all three families, two observations stand out. First, none of these instruments treats crisis management as its primary object: they either subsume it into a broader cybersecurity capability or address neighbouring concerns, such as incident response or business continuity, without unifying them under a coherent crisis lifecycle. Second, none of them maps natively to the ENISA "Best Practices for Cyber Crisis Management" framework published in February 2024 \cite{enisa_crisis_mgmt_2024}, which is precisely the reference text NIS2 implicitly relies on for crisis-management capabilities.
+\subsection{Synthesis: a persistent gap}
+\label{sec:soa-maturity-gap}
+
+Across all three families, two observations stand out. First, none of these instruments treats crisis management as its primary object: they either subsume it into a broader cybersecurity capability or address neighbouring concerns, such as incident response or business continuity, without unifying them under a coherent crisis lifecycle. Second, none of them maps natively to the ENISA "Best Practices for Cyber Crisis Management" framework published in February 2024 \cite{enisa_crisis_mgmt_2024}, which is precisely the reference text NIS2 implicitly relies on for crisis-management capabilities, discussed in full in Chapter~\ref{chap:context}.
 
 \section{Cyber crisis management as a research subject}
 
 Whereas general cybersecurity maturity is well-served by both industry tools and academic literature, the more specific question of cyber crisis management maturity has received comparatively fragmented attention. The literature can be grouped into three strands.
 
-A first strand consists of standards and authoritative guidance. ISO/IEC 27035 \cite{iso27035_2023} sets the normative baseline this thesis' referential eventually maps onto: it defines a structured incident-management lifecycle, covering planning and preparation, detection and reporting, assessment and decision, response, and lessons learnt, without prescribing a maturity metric. ISO/IEC 27005 \cite{iso27005_2022} complements it with a risk-management reference point, also without a maturity dimension. The ENISA "Best Practices for Cyber Crisis Management" study of February 2024 \cite{enisa_crisis_mgmt_2024} explicitly builds on this lifecycle, organising the discipline into sixteen actionable best practices distributed across four phases (Prevention, Preparedness, Response, Recovery) and aligning the resulting body of practice with NIS2 obligations. This is why the project's referential carries \texttt{iso\_27035\_clauses} mapping fields (see \ref{chap:scoring-engine}), even though they remain largely unpopulated at this stage. The study is, however, descriptive: it specifies what good crisis management looks like, without prescribing how to measure adherence to it.
+\subsection{Standards and authoritative guidance}
+\label{sec:soa-standards-guidance}
 
-A second strand consists of academic maturity proposals specifically targeting cyber crises. Østby and Katt proposed a maturity escalation model grounded in ISO 27005 and ISO 27035 and evaluated it through a case study at a Norwegian healthcare institution \cite{ostby2020maturity}. Their work demonstrates that crisis-management maturity can be modelled meaningfully, but the model remains a research artefact: it has not been operationalised into a deployable tool, and it predates the ENISA 2024 reference. Other studies address narrower aspects of the crisis lifecycle, such as corporate communication after cyber incidents \cite{knight2020framework} or crisis-management governance for the EU Cyber Crisis Liaison Organisation Network (CyCLONe).
+ISO/IEC 27035 \cite{iso27035_2023} sets the normative baseline this thesis' referential eventually maps onto: it defines a structured incident-management lifecycle, covering planning and preparation, detection and reporting, assessment and decision, response, and lessons learnt, without prescribing a maturity metric. ISO/IEC 27005 \cite{iso27005_2022} complements it with a risk-management reference point, also without a maturity dimension. The ENISA "Best Practices for Cyber Crisis Management" study of February 2024 \cite{enisa_crisis_mgmt_2024} explicitly builds on this lifecycle, organising the discipline into sixteen actionable best practices distributed across four phases (Prevention, Preparedness, Response, Recovery) and aligning the resulting body of practice with NIS2 obligations. This is why the project's referential carries \texttt{iso\_27035\_clauses} mapping fields (see Chapter~\ref{chap:scoring-engine}), even though they remain largely unpopulated at this stage. The study is, however, descriptive: it specifies what good crisis management looks like, without prescribing how to measure adherence to it.
+
+\subsection{Academic maturity proposals for cyber crises}
+\label{sec:soa-academic-proposals}
+
+Østby and Katt proposed a maturity escalation model grounded in ISO 27005 and ISO 27035 and evaluated it through a case study at a Norwegian healthcare institution \cite{ostby2020maturity}. Their work demonstrates that crisis-management maturity can be modelled meaningfully, but the model remains a research artefact: it has not been operationalised into a deployable tool, and it predates the ENISA 2024 reference. Other studies address narrower aspects of the crisis lifecycle, such as corporate communication after cyber incidents \cite{knight2020framework} or crisis-management governance for the EU Cyber Crisis Liaison Organisation Network (CyCLONe).
+
+\subsection{ENISA's own maturity work on CSIRTs}
+\label{sec:soa-enisa-csirt}
 
 A third strand consists of ENISA's own maturity work, which has historically focused on Computer Security Incident Response Teams (CSIRTs). ENISA published a CSIRT Maturity Evaluation Methodology \cite{enisa_csirt_maturity_2019} and maintains national maturity assessment frameworks aimed at Member States and national authorities. These tools target a different unit of analysis, teams or nation-states, rather than the organisation-level crisis preparedness that this thesis addresses.
+
+\subsection{Synthesis: fragmented coverage}
+\label{sec:soa-fragmented-coverage}
 
 The picture that emerges is one of fragmented coverage: standards describe the discipline, academic papers explore individual facets, and ENISA itself measures CSIRTs and national capabilities; no published instrument, however, operationalises the ENISA 2024 framework into a scorable self-assessment for organisations subject to NIS2. This is the precise space in which this thesis intervenes.
 
@@ -29,9 +53,18 @@ The picture that emerges is one of fragmented coverage: standards describe the d
 
 A second body of literature, distinct from the first, bears directly on the recommendation component of this work. The use of Large Language Models (LLMs) to produce natural-language guidance from structured input has matured rapidly, but so has the awareness of its limits.
 
+\subsection{The hallucination problem}
+\label{sec:soa-hallucination-problem}
+
 The most documented limit is hallucination: the tendency of LLMs to generate fluent statements that are factually incorrect or unsupported by evidence, with reported rates varying considerably depending on the task \cite{ji2023survey}. In an enterprise deployment context, the consequences are not academic: hallucinations have been documented to undermine adoption, to introduce legal exposure through a growing number of court cases involving AI-generated hallucinations, systematically tracked since 2023 by a dedicated case database \cite{charlotin_hallucinations_db}, and to erode trust between users and AI-augmented systems. Industry surveys consistently identify hallucination as the single largest barrier to enterprise LLM adoption, ahead of cost or unclear return on investment.
 
+\subsection{Mitigation strategies}
+\label{sec:soa-mitigation-strategies}
+
 Mitigation strategies fall along several axes that combine in practice. Retrieval-Augmented Generation (RAG) anchors the model's output in a curated knowledge base, and has been shown to materially reduce hallucination rates in knowledge-grounded dialogue: on the Wizard of Wikipedia test set, human evaluators rated 68.2\% of a non-retrieval baseline's (BART-Large) responses as hallucinated, against 7.9\% for the best retrieval-augmented variant (FiD-RAG, 5 retrieved documents) \cite{shuster2021retrieval}, with more recent work extending these gains to structured, enterprise-oriented outputs \cite{bechard2024reducing}. Prompt grounding instructs the model to reason only from explicitly provided context, often paired with structured output formats (JSON schemas) to constrain the generation space. Post-generation validation treats LLM output as untrusted and applies deterministic checks before it reaches the user, verifying that cited entities exist, that referenced identifiers resolve to known objects, or that numerical claims fall within expected ranges. Recent academic work also explores neurosymbolic approaches and self-consistency checks across multiple sampled responses \cite{wang2023selfconsistency}, though these techniques are heavier and less practical for a production deployment.
+
+\subsection{Inference locality and model selection}
+\label{sec:soa-inference-locality}
 
 A second consideration, particularly relevant in regulated European contexts, is inference locality. Sending assessment data to a cloud LLM provider conflicts with the data-handling expectations of NIS2-regulated entities, especially when the data describes the very weaknesses of an organisation's cyber posture. The rise of mature local LLM runtimes, Ollama, llama.cpp, and similar, has made it practical to run capable open-weight models entirely on-premises. The trade-off is well known: smaller models (3B to 8B parameters) run on commodity hardware but exhibit reduced fidelity in structured-output tasks, while larger models ($\geq$~70B) require dedicated GPU resources rarely available outside data centres. Selecting a model for a given use case therefore becomes an explicit trade-off between fidelity, latency, and infrastructure cost, a trade-off this thesis revisits empirically in Chapter~\ref{chap:validation}.
 
@@ -39,10 +72,19 @@ A second consideration, particularly relevant in regulated European contexts, is
 
 The state of the art outlined above motivates the design of this work in three converging ways.
 
-First, the absence of an operationalised ENISA-aligned assessment instrument justifies the central artefact of this thesis: a deterministic scoring engine, detailed in Chapter~\ref{chap:scoring-engine}, that turns the sixteen ENISA best practices into a measurable, auditable score. Rather than yet another general maturity tool, the instrument targets a sharply defined gap.
+\subsection{An operationalised assessment instrument}
+\label{sec:soa-operationalised-instrument}
 
-Second, the awareness of LLM hallucination risk justifies the strict separation between deterministic scoring and AI-generated text, formalised as one of the five inviolable principles guiding this project (see Chapter~\ref{chap:method}). The scoring pipeline contains no LLM, as detailed in Chapter~\ref{chap:scoring-engine}; the LLM operates strictly downstream, on a fully-computed result, to produce narrative recommendations. This architectural choice directly addresses the principal adoption barrier reported by enterprises, and it makes the score itself defensible to a client or auditor without dependence on a probabilistic component.
+The absence of an operationalised ENISA-aligned assessment instrument justifies the central artefact of this thesis: a deterministic scoring engine, detailed in Chapter~\ref{chap:scoring-engine}, that turns the sixteen ENISA best practices into a measurable, auditable score. Rather than yet another general maturity tool, the instrument targets a sharply defined gap.
 
-Third, the data-sovereignty expectations of NIS2-regulated environments justify the local-first design, also formalised among the project's inviolable principles (Chapter~\ref{chap:method}). All inference runs on infrastructure under the user's control; no client data leaves the assessment environment.
+\subsection{Deterministic scoring, AI-generated narrative}
+\label{sec:soa-deterministic-ai-separation}
+
+The awareness of LLM hallucination risk justifies the strict separation between deterministic scoring and AI-generated text, formalised as one of the five inviolable principles guiding this project (see Chapter~\ref{chap:method}). The scoring pipeline contains no LLM, as detailed in Chapter~\ref{chap:scoring-engine}; the LLM operates strictly downstream, on a fully-computed result, to produce narrative recommendations. This architectural choice directly addresses the principal adoption barrier reported by enterprises, and it makes the score itself defensible to a client or auditor without dependence on a probabilistic component.
+
+\subsection{Local-first data sovereignty}
+\label{sec:soa-local-first-sovereignty}
+
+The data-sovereignty expectations of NIS2-regulated environments justify the local-first design, also formalised among the project's inviolable principles (Chapter~\ref{chap:method}). All inference runs on infrastructure under the user's control; no client data leaves the assessment environment.
 
 The combination of these three positions, ENISA operationalisation, deterministic-AI separation, local inference, defines a design space that, to the best of our knowledge, no existing tool currently occupies. The remainder of this thesis develops, justifies, and evaluates the resulting platform.

@@ -3,14 +3,11 @@
 % File: chapters/chapter4.tex
 %
 % Preamble reminder for the main .tex (Rapport_Stage.tex):
-%   tnreport.cls ALREADY loads booktabs and tikz with the
-%   positioning/arrows.meta/fit libraries, no need to add them again.
-%   The only addition needed is the "backgrounds" tikz library, used
-%   for the dashed stage boxes in the Section 4.2 figure:
-%     \usetikzlibrary{backgrounds}
-%   Also confirm \usepackage{seqsplit} is loaded somewhere in the
-%   preamble (used here for long code identifiers such as file and
-%   module names, so they can break across lines inside \texttt{}).
+%   Nothing to add. tnreport.cls already loads booktabs and tikz with
+%   the positioning/arrows.meta/fit libraries used by the Section 4.2
+%   figure, and listings for code excerpts. Long \texttt{} identifiers
+%   are wrapped with manual \allowbreak instead of a seqsplit package,
+%   per the project convention (see claude/memoire-reference.md, S2).
 %
 % Included from the main file as:
 %   \input{chapters/chapter4}
@@ -19,6 +16,7 @@
 
 \chapter{Methodological Approach and Design Choices}
 \label{chap:method}
+\emergencystretch=3em\relax
 
 This chapter states the approach that shaped every technical choice
 described later in this report. It sits between the problem statement
@@ -51,14 +49,14 @@ for that sprint. Closing a sprint meant checking that list item by item,
 instead of declaring the work finished by feel.
 
 This discipline was paired with a documentation-first habit, built around
-two documents. \texttt{\seqsplit{CLAUDE.md}} is the framing document for
+two documents. \texttt{CLAUDE.md} is the framing document for
 the whole project: it states the five inviolable principles discussed in
 Section~\ref{sec:principles}, the working method itself, down to the rule
 that an ambiguous sprint brief should be clarified before coding rather
 than settled by guessing, and a numbered list of anti-patterns to avoid,
 reproduced in Table~\ref{tab:anti-patterns} so that later chapters can
 refer to them by number instead of restating them.
-\texttt{\seqsplit{ARCHITECTURE.md}} is an append-only, dated log of the
+\texttt{ARCHITECTURE.\allowbreak md} is an append-only, dated log of the
 architectural decisions taken sprint after sprint, each entry recording
 both the decision and its justification. Both documents were written as
 the decisions were being made, which is why most of the justifications
@@ -78,7 +76,7 @@ rather than reconstructed from memory for this report.
     5 & Reintroducing anonymous access or bypassing the centralized auth layer. \\
     6 & Splitting the stack into microservices. \\
     7 & Relying on implicit SQLAlchemy lazy loading where it can hide N+1 queries. \\
-    8 & Committing \texttt{\seqsplit{.env}} files or other secrets. \\
+    8 & Committing \texttt{.env} files or other secrets. \\
     9 & Writing a frontend component longer than 200 lines. \\
     10 & Reordering the scoring pipeline, or changing the referential's structure, without bumping its version. \\
     \bottomrule
@@ -139,7 +137,7 @@ chapter does not repeat it.
 
 Figure~\ref{fig:scoring-ai-separation} illustrates the resulting pipeline.
 Assessment inputs flow into the deterministic engine, which produces the
-AssessmentResult; that result is then read, never written, by the local
+\texttt{Assessment\allowbreak Result}; that result is then read, never written, by the local
 language model, which produces narrative output only. The diagram
 deliberately does not draw an arrow running back from the language model
 to the engine or to the score: nothing downstream of the score is allowed
@@ -166,10 +164,8 @@ to influence it.
     \draw[arr] (result.south) .. controls +(0,-0.8) and +(0,0.8) .. node[lbl, right] {read-only} (llm.north);
     \draw[arr] (llm) -- (narrative);
 
-    \begin{scope}[on background layer]
-      \node[draw, dashed, rounded corners, fit=(inputs)(engine)(result), inner sep=8pt, label={[stagelabel]above:Deterministic stage}] {};
-      \node[draw, dashed, rounded corners, fit=(llm)(narrative), inner sep=8pt, label={[stagelabel]below:AI augmentation stage}] {};
-    \end{scope}
+    \node[draw, dashed, rounded corners, fit=(inputs)(engine)(result), inner sep=8pt, label={[stagelabel]above:Deterministic stage}] {};
+    \node[draw, dashed, rounded corners, fit=(llm)(narrative), inner sep=8pt, label={[stagelabel]below:AI augmentation stage}] {};
   \end{tikzpicture}
   \caption{Separation between the deterministic scoring engine and the AI augmentation layer}
   \label{fig:scoring-ai-separation}
@@ -193,7 +189,7 @@ enforced and where its consequences are detailed further in this report.
     P1 -- Deterministic scoring & The engine alone computes the score; the AI never touches it, so the result is always reproducible and auditable. \\
     P2 -- Local-first & All language model inference runs on a local Ollama instance; no assessment data ever reaches an external API. \\
     P3 -- Secure by design & Data sensitivity drives the architecture, from encryption at rest to input validation and a single access-control module. \\
-    P4 -- Single source of truth & \texttt{\seqsplit{referential.yaml}} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
+    P4 -- Single source of truth & \texttt{referential.\allowbreak yaml} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
     P5 -- Auth schema from day one & The data model carries users, organizations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
     \bottomrule
   \end{tabular}
@@ -252,7 +248,8 @@ referential text, but never an organization name, an identifier, or the
 content of a justification field. Access control
 follows the same logic, centralized in a single module rather than
 re-implemented per route, closing the kind of broken access control that
-OWASP lists as the most common web application weakness. The concrete
+OWASP lists as the most common web application weakness~\cite{owasp_top10_a01_2021}.
+The concrete
 mechanisms, encryption, logging discipline, and the access-control module,
 are described where they are implemented, in Chapter~\ref{chap:platform}.
 
@@ -320,18 +317,20 @@ purely on technical merit.
 
 Once local inference was fixed, the sizing question reproduced a smaller
 version of the same trade-off. The referential lists several 7B-class
-candidates for the local model, \texttt{\seqsplit{mistral:7b-instruct}},
-\texttt{\seqsplit{mixtral:8x7b}}, \texttt{\seqsplit{llama3.1:8b}}, and
-\texttt{\seqsplit{qwen2.5:7b}}, none of which is what the platform actually
-runs: the model deployed is \texttt{\seqsplit{qwen2.5:3b}}, smaller than any
-of them. The choice was driven by latency rather than by a formal
-comparison of output quality, which \texttt{\seqsplit{CLAUDE.md}} itself
-defers to a later sprint. On the CPU-bound hardware used for the demo, a 7B model pushed a
-single recommendation request into multiple minutes, impractical for a
-live, client-facing tool, while the 3B model keeps generation to about a
-minute. The resulting quality loss was judged acceptable because the AI's
-task stays narrow, summarizing and enriching a fixed set of referential
-recommendations for a short list of weak best practices, rather than
+candidates for the local model, \texttt{mistral:7b-\allowbreak instruct},
+\texttt{mixtral:8x7b}, \texttt{llama3.1:\allowbreak 8b}, and
+\texttt{qwen2.5:\allowbreak 7b}, none of which is what the platform actually
+runs: the model deployed is \texttt{qwen2.5:\allowbreak 3b}, smaller than any
+of them. None of the larger candidates was actually benchmarked on the
+project's hardware, only the deployed 3B model's generation time was
+measured, at roughly a minute on the CPU-bound machine used for the demo.
+The choice of the smaller model rested on the reasonable expectation that a
+7B model would be slower still on the same hardware rather than on a
+measured comparison, and \texttt{CLAUDE.md} itself defers that formal
+benchmark to a later sprint. The resulting quality loss was judged
+acceptable because the AI's task stays narrow, summarizing and enriching a
+fixed set of referential recommendations for a short list of weak best
+practices, rather than
 open-ended reasoning.
 
 \subsection{Heavy orchestration frameworks rejected}
@@ -360,7 +359,7 @@ The most direct way to expose a score over the API would have been to let
 each route that needs one build the engine's input structure locally and
 call the scoring functions itself, especially once a second consumer
 needed the same translation: the recommendations endpoint requires the
-same freshly computed \texttt{\seqsplit{AssessmentResult}} as the score
+same freshly computed \texttt{Assessment\allowbreak Result} as the score
 endpoint itself, only to build a prompt from it instead of to serve it
 directly. That path was rejected in favor of a single
 bridge module that is the only place in the codebase allowed to translate
@@ -383,7 +382,7 @@ impossible rather than merely unlikely.
     \midrule
     Local inference via Ollama & Cloud LLM API (OpenAI, Anthropic, Mistral) & P2 \\
     Direct HTTP client to Ollama & Orchestration framework (LangChain, LlamaIndex) & P3 \\
-    Single \texttt{\seqsplit{scoring\_bridge.py}} translation seam & Scoring logic duplicated across API routes & P1 \\
+    Single \texttt{scoring\_\allowbreak bridge.\allowbreak py} translation seam & Scoring logic duplicated across API routes & P1 \\
     \bottomrule
   \end{tabular}
   \caption{Summary of key design choices and rejected alternatives}

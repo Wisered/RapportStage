@@ -1,5 +1,5 @@
 \chapter{Hosting Organisation and Project Framing}
-\label{chap:hosting-organisation}
+\label{chap:framing}
 
 This internship was carried out within Wavestone, a management and technology
 consulting group, and more specifically within its Cyber practice in
@@ -13,7 +13,9 @@ shaped several technical choices, and finally the link between the company's
 initial need and the thesis problem developed in the following chapter.
 
 \section{Wavestone: group overview}
-\label{sec:wavestone-group}
+\label{sec:framing-group}
+
+\subsection{Origins and corporate structure}
 
 Wavestone traces its origins to Solucom, a consulting firm founded in 1990,
 which merged with the European activities of Kurt Salmon in January 2016 to
@@ -22,6 +24,8 @@ Q\_PERIOR, a leading consulting firm in the German-speaking market,
 extending its footprint in Germany, Austria and Switzerland. Wavestone is an
 independent consulting firm, listed on Euronext Paris (Compartment B), with
 its headquarters at the Tour Franklin in La D\'efense, near Paris.
+
+\subsection{Scale, practices and client base}
 
 As of the close of its 2025/26 fiscal year (31 March 2026), the group
 employed 6,111 consultants across 17 countries, for a consolidated revenue
@@ -36,11 +40,15 @@ groups, as well as public institutions, across sectors such as banking,
 insurance, energy, transport and the public sector.
 
 \section{Wavestone Luxembourg and the Cyber practice}
-\label{sec:wavestone-luxembourg}
+\label{sec:framing-luxembourg}
+
+\subsection{The Luxembourg office}
 
 Wavestone has had an office in Luxembourg since 2006. As of the writing of
 this report, the office employs around fifty consultants, of whom
 approximately twenty work within the Cyber practice.
+
+\subsection{The Cyber practice}
 
 The Cyber practice covers a range of mission types for its clients,
 including crisis management exercises, consulting missions on various
@@ -50,22 +58,30 @@ European institutions, in addition to private-sector organisations more
 broadly.
 
 \section{The PFE mission within Wavestone}
-\label{sec:pfe-mission}
+\label{sec:framing-mission}
+
+\subsection{Mission title and placement}
 
 The mission carried out during this internship is titled ``Cyber Crisis
 Management Maturity Self-Assessment Platform''. It was carried out within
-the Cyber practice introduced in Section~\ref{sec:wavestone-luxembourg}, a
+the Cyber practice introduced in Section~\ref{sec:framing-luxembourg}, a
 team of around twenty consultants into which the intern was integrated.
+
+\subsection{Purpose within the practice}
 
 The resulting tool is intended to help the practice better assess how
 prepared a given organisation is with respect to the ENISA best practices,
 and to adapt cyber crisis management exercises accordingly.
 
+\subsection{Industrial supervision}
+
 Industrial supervision was provided by Riccardo Bergamaschi, Manager within
 the Cyber practice.
 
 \section{Working environment and constraints}
-\label{sec:working-environment}
+\label{sec:framing-environment}
+
+\subsection{Hardware and infrastructure constraints}
 
 The corporate laptop provided by Wavestone did not grant administrator
 rights, which made a virtualised development environment mandatory rather
@@ -73,40 +89,45 @@ than optional. The platform and its supporting services were therefore run
 inside a virtual machine, a constraint that later shaped several of the
 networking and deployment choices detailed in Chapter~\ref{chap:platform}.
 
+\subsection{The local-first choice}
+
 Running the AI component entirely on local infrastructure, through Ollama,
 was a design choice made independently, rather than a requirement dictated
 in writing by Wavestone, once the nature of the data was considered: an
 assessment is effectively a map of an organisation's cyber weaknesses, and
-the NIS2
-directive, discussed in Chapter~\ref{chap:context}, sets clear expectations
-around data sovereignty. This choice was formalised as one of the five
-inviolable principles guiding the project (P2, local-first, see
+the NIS2 directive \cite{nis2_directive_2022}, discussed in
+Chapter~\ref{chap:context}, sets clear expectations around data
+sovereignty. This choice was formalised as one of the five inviolable
+principles guiding the project (P2, local-first, see
 Chapter~\ref{chap:method}).
+
+\subsection{Working language}
 
 Day-to-day work at the Luxembourg office took place in a mix of French and
 English, the language used depending on the colleagues involved and on the
 project at hand.
 
 \section{From mission to thesis problem}
-\label{sec:mission-to-thesis}
+\label{sec:framing-bridge}
 
 The mission described in the previous sections had a well-defined starting
 point: the Cyber practice needed a way to give substance to crisis-readiness
 conversations with clients, but had no structured tool to do so. ENISA's
-2024 study, ``Best Practices for Cyber Crisis Management'', identifies
-sixteen best practices spread across the four phases of a crisis,
+2024 study, ``Best Practices for Cyber Crisis Management'' \cite{enisa_crisis_mgmt_2024},
+identifies sixteen best practices spread across the four phases of a crisis,
 prevention, preparedness, response and recovery, yet it provides no
 mechanism to measure how well an organisation actually applies them. At the
 same time, the NIS2 directive puts organisations under growing regulatory
 pressure to demonstrate a level of crisis-management maturity that goes
 beyond a simple declarative claim. Existing self-assessment tools, such as
-the CISA Cyber Resilience Review or the NIST Cybersecurity Framework
-self-assessments, were designed independently of ENISA's structure and of
-NIS2's specific obligations, and do not map cleanly onto either. Turning the
-ENISA framework into an operational, auditable self-assessment platform,
-capable of producing a defensible score and AI-assisted recommendations
-while keeping client data within the organisation's own infrastructure, is
-the concrete engineering problem this mission set out to address.
-Chapter~\ref{chap:context} develops the regulatory and technical context
-behind this problem in more detail, and Chapter~\ref{chap:method} then
-presents the methodological principles used to address it.
+the CISA Cyber Resilience Review \cite{cisacrr} or the NIST Cybersecurity
+Framework self-assessments \cite{nist_csf2_2024}, were designed
+independently of ENISA's structure and of NIS2's specific obligations, and
+do not map cleanly onto either. Turning the ENISA framework into an
+operational, auditable self-assessment platform, capable of producing a
+defensible score and AI-assisted recommendations while keeping client data
+within the organisation's own infrastructure, is the concrete engineering
+problem this mission set out to address. Chapter~\ref{chap:context}
+develops the regulatory and technical context behind this problem in more
+detail, and Chapter~\ref{chap:method} then presents the methodological
+principles used to address it.
