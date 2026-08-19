@@ -1,0 +1,127 @@
+\chapter{Project Management and Critical Reflection}
+\label{chap:pm}
+\emergencystretch=3em\relax
+
+The preceding chapters have presented the platform itself, its scoring engine, its architecture, and the results obtained from it. This chapter turns to a different question, not what was built, but how it was built and what I would keep or change about that process. The internship brief asks explicitly for a description of the working method and project management approach followed, and for a critical look back at my own work, and I take both requirements seriously here. Section~\ref{sec:pm-working-method} revisits the method described in Chapter~\ref{chap:method} in light of what actually happened, Section~\ref{sec:pm-risks} recounts the main difficulties encountered and how each was resolved, Section~\ref{sec:pm-differently} is a frank account of what I would do differently with the benefit of hindsight, and Section~\ref{sec:pm-skills} closes on the skills the project mobilised and the ones it left me with. I have tried throughout to resist the temptation to smooth the account into a success story, an engineering project is judged as much by how its difficulties were handled as by its final state.
+
+\section{Working method, in retrospect}
+\label{sec:pm-working-method}
+
+Chapter~\ref{chap:method} described the method chosen at the outset of the project, sprint-bounded increments, five inviolable principles, and a documentation-first discipline meant to keep the reasoning behind each choice legible. This section does not repeat that description, it asks how well the method actually held once the work was underway, and where it needed to bend.
+
+\subsection{Sprint-bounded work and the Definition of Done}
+\label{sec:pm-sprints}
+
+Development proceeded through short, explicitly scoped sprints, tracked as tagged milestones in the project's git history (\texttt{sprint-0}, \texttt{sprint-0b-scoring-api}, and later the smaller \texttt{AUTH.1} to \texttt{AUTH.3} mini-sprints for authentication). Each sprint carried its own definition of done, a short list of what had to work end to end before moving on, rather than a general intention to make progress on several fronts at once. In practice this discipline held up well for the highest-risk piece of the project: integrating the pre-existing scoring engine into a real backend and database, rather than the frontend or the deployment stack, was treated as the priority to de-risk first, and the sprint boundaries made that priority explicit and enforceable rather than aspirational.
+
+\subsection{Documentation-first as a working discipline}
+\label{sec:pm-documentation-first}
+
+Alongside the code, two documents were maintained throughout the project and read at the start of every working session: \texttt{CLAUDE.md}, a single reference describing the project's context, principles, and current state, and \texttt{ARCHITECTURE.md}, a running, dated log of methodological and architectural decisions, each entry recording not only what was decided but why. Writing this log at the time a decision was made, rather than reconstructing it months later for the report, is the discipline I would credit most directly for making this chapter, and several others, possible to write with any precision. The cost was real: every non-trivial decision meant pausing to write a paragraph explaining it, which slowed the pace of purely technical progress in the moment. The benefit only became visible in retrospect, when drafting the report required no memory reconstruction, only a search through an existing log.
+
+\subsection{Verification before commit}
+\label{sec:pm-verification}
+
+The project also carried a consistent discipline of verifying a decision or a piece of code before treating it as final. The scoring engine's own test suite, seventy tests at the point of integration, was kept green throughout its move into the backend, and an end-to-end script, \texttt{score\_test.py}, cross-checks the full database-to-engine path against the engine called directly, to catch any distortion introduced by the translation layer between the two. The engine itself was also subjected to an audit carried out independently of its implementation, discussed in more detail in Chapter~\ref{chap:validation}. What belongs here is the discipline it reflects: treating a component as trustworthy only once it had been checked by something other than the reasoning that produced it in the first place.
+
+\subsection{Where the method drifted from the plan}
+\label{sec:pm-plan-drift}
+
+The method did not, however, hold to its own plan without adjustment, and that departure is worth recording honestly rather than glossing over. Sprint 0's original brief explicitly scoped the scoring endpoint and answer submission out of its definition of done, deferring them to a later sprint, while placing the frontend, the Docker Compose stack, and the accompanying Makefile inside it. What actually happened reversed that order: two sub-sprints, 0B.1 and 0B.2, delivered assessment storage with autosave and the scoring endpoint wired end to end through the engine first, while the frontend, the container stack, and the Makefile were not yet built. I chose to keep the git history's actual order in this report rather than the order originally planned, which forces an admission that the initial plan was not a good predictor of where the real risk lay. In hindsight the reprioritisation was the right call, the scoring engine's integration was the single largest technical risk in the project and it made sense to prove it worked before investing in a user interface for it, but the honest lesson is that the plan itself should have said so from the start, rather than being corrected after the fact.
+
+\section{Risks and difficulties encountered}
+\label{sec:pm-risks}
+
+This section consolidates the difficulties that cost the most time or exposed a real gap in the working method, most of them already documented as they were resolved. The technical mechanics of each are detailed in the chapters where the corresponding component is described, what I keep here is the retrospective, what each difficulty actually cost, and what it taught me about the way I was working.
+
+\subsection{Corporate environment constraints}
+\label{sec:pm-corporate-constraints}
+
+Two constraints tied to working on a corporate machine, distinct from the VM's network wiring described in Chapter~\ref{chap:platform}, shaped the development environment before a single line of the platform was written.
+
+The first was the absence of administrator rights on the Wavestone laptop, which left no usable development environment directly on the host. The only way to get a machine I could freely install and configure software on was to run one myself, inside a virtual machine. The VirtualBox VM was therefore not a choice made for comfort or isolation, it was the only environment left once native development was ruled out, and it is also, by extension, the reason the whole NAT networking setup described in Chapter~\ref{chap:platform} (Ollama reachable from the VM at \texttt{10.0.2.2}) existed at all.
+
+The second was narrower but just as concrete: on the corporate network, \texttt{pip install} simply did not go through. I do not know exactly what was filtering it, and I would rather leave that unstated than guess at a mechanism I never verified, but the effect was unambiguous, package installation failed on the Wavestone connection and succeeded once I tethered through my phone instead. Working around it meant treating a personal mobile connection as part of the development toolchain, a small but telling illustration of what a locked-down corporate network actually costs day to day.
+
+Neither constraint was severe enough to threaten the project, but both forced detours that would not have existed on a personal machine, and both ended up shaping decisions, the VM itself and the networking setup built on top of it, that I would not otherwise have had to make.
+
+\subsection{The SameSite/proxy cookie bug}
+\label{sec:pm-cookie-bug}
+
+The most disruptive bug of the project surfaced only on the corporate VM setup, not on my personal machine. After logging in or creating an account, the authentication request itself succeeded, the backend issued a session cookie, but the very next call to \texttt{GET /api/me} came back \texttt{401}, which sent the interface straight back to the login screen in an unbreakable loop. Chapter~\ref{chap:platform} details the mechanics of the fix, what matters here is what the episode cost and what it taught me.
+
+The underlying cause combined two things. The session cookie carried \texttt{SameSite=Lax} by design, a deliberate security choice, but the frontend and backend ran on different ports (\texttt{localhost:3000} and \texttt{localhost:8000}), which the browser treated as cross-site and refused to store the cookie against. A second, hidden factor made the bug harder to see: an unversioned, VM-specific \texttt{NEXT\_\allowbreak PUBLIC\_\allowbreak API\_\allowbreak URL} entry sitting in a local \texttt{.env.local} file forced every API call onto an absolute cross-origin URL, which is precisely why the bug only ever appeared on the VM and never on my own machine. The fix, a Next.js proxy relaying \texttt{/api/*} to the backend so the browser only ever sees one origin, did not touch the cookie's security attributes at all.
+
+Two lessons stayed with me from this. First, a flow this central deserves to be exercised in the actual target configuration early, not just on a comfortable development machine, the bug was invisible until I tested inside the VM setup that the demo would actually run on, and by then it cost real time to trace back to its cause. Second, local configuration files that are deliberately left out of version control, exactly because they are supposed to be machine-specific, are also exactly the kind of thing that produces a bug nobody else can reproduce and that the log rarely explains on its own. I now treat any environment variable that changes behaviour silently as something to double-check explicitly before assuming a bug is somewhere else.
+
+\subsection{Hardware arbitration for the local model}
+\label{sec:pm-model-arbitration}
+
+The choice of \texttt{qwen2.5:3b} as the deployed model, discussed from the design side in Chapter~\ref{chap:method} and revisited empirically in Chapter~\ref{chap:validation}, was in practice an arbitration made under a hard constraint rather than a considered comparison. The demo ran on CPU inside a VM, with no GPU available, and a 7B-class model such as \texttt{mistral:7b-instruct} pushed generation time into several minutes per request, which made the recommendations endpoint impractical to use or to demonstrate. The 3B model kept generation to roughly a minute, still slow but usable.
+
+The honest limitation is that this was a latency-driven decision made against one data point, not a benchmark. None of the larger candidates listed at the start of the project, \texttt{mistral:7b-instruct}, \texttt{mixtral:8x7b}, \texttt{llama3.1:8b}, \texttt{qwen2.5:7b}, was ever actually measured on the project's hardware, only \texttt{qwen2.5:3b}'s generation time was. I stand by the choice given the constraint, a model nobody can wait for is not a useful demo regardless of how much better its output might be, but I would not present it as a rigorously benchmarked trade-off, and Chapter~\ref{chap:validation} is explicit about the same limitation.
+
+\subsection{Reliability of a small local model}
+\label{sec:pm-model-reliability}
+
+A 3B-parameter model is a small model, and treating its output as reliable enough to show a user required accepting that it would sometimes be wrong, then designing around that rather than assuming it away. The task it was given is narrow by design, summarising and enriching a short list of already-computed, weak best practices rather than reasoning openly over the assessment, which is precisely what makes a small model viable here at all. Even so, the guardrails described in Chapter~\ref{chap:platform}, anchoring generation to the listed best-practice identifiers, discarding any recommendation that cites one outside the referential, and falling back to the referential's static recommendations on any failure, exist because I could not treat the model's output as trustworthy by default. The lesson I take from this is less about the specific model and more about the posture: a local, small, non-deterministic component can still be shipped responsibly, but only if the surrounding system is built to assume it will occasionally misbehave, not as an afterthought bolted on once it did.
+
+\subsection{A broken dependency: \texttt{passlib} versus \texttt{bcrypt}}
+\label{sec:pm-passlib}
+
+A smaller but telling incident: the plan was to hash passwords through \texttt{passlib}, a well-known abstraction over several hashing backends, but it turned out to be unmaintained and to crash outright against a current \texttt{bcrypt} release, because it inspects a version attribute that no longer exists on the newer package. The fix was to call \texttt{bcrypt} directly instead, which turned out to be fewer moving parts for the same guarantee. The incident cost little time to fix once diagnosed, but it is a small, concrete example of a risk that a completely unlocked dependency set carries throughout a project, taken up more generally in Section~\ref{sec:pm-differently}.
+
+\subsection{Re-authenticating the test tooling}
+\label{sec:pm-test-script}
+
+The internal script used to generate test assessments, \texttt{generate\_\allowbreak test\_\allowbreak assessments.py}, populating profiles such as \texttt{perfect}, \texttt{zero}, \texttt{realistic}, \texttt{gated}, \texttt{penalized}, or \texttt{with\_na} for testing and for the dashboard screenshots in Chapter~\ref{chap:platform}, was written before authentication existed, at a time when creating an assessment through the API required no session at all. Once the AUTH.2 sprint locked the assessment endpoints down, requiring a valid session and stamping the caller as owner, the script started failing with \texttt{401 Unauthorized} on every attempt to create an assessment.
+
+The fix was straightforward once diagnosed: the script now takes credentials as arguments, logs in against \texttt{/api/auth/login} first, and reuses the resulting session cookie for the calls that follow. What is worth keeping from the episode is not the fix itself but what the failure meant. It was not a bug, it was the access control working exactly as designed, refusing an unauthenticated caller regardless of whether that caller was a real user or my own tooling. Security applied consistently does not carve out an exception for the tools built to test it, and finding that out through my own script breaking is, if anything, a better confirmation that the access-control layer described in Chapter~\ref{chap:platform} was doing its job than any test written to prove it deliberately would have been.
+
+\section{What I would do differently}
+\label{sec:pm-differently}
+
+This section looks further back, at what I would change if I were starting the project again. Several of the choices revisited here were reasonable given what was known at the time, and I say so explicitly rather than judging them purely with hindsight. The chapter's brief asks for lucidity here, and I have tried to hold to that without turning ordinary trade-offs into failures.
+
+\subsection{A locked Python environment from the start}
+\label{sec:pm-lockfile}
+
+The dependency management decision made at the start of the project, plain \texttt{pip} and \texttt{setuptools} against a \texttt{pyproject.toml}, with no lockfile, was reasoned at the time: for an MVP with a short dependency list and a single developer, it was the path with the least extra tooling, to be revisited once the team or the dependency graph grew. With hindsight I would separate two things that are easy to conflate here.
+
+The \texttt{passlib} incident described in Section~\ref{sec:pm-passlib} would not have been avoided by a lockfile. It was a compatibility failure at the root, an unmaintained library inspecting an attribute that a current \texttt{bcrypt} release no longer exposes, and that wall appears whenever the two are paired, locked or not. A lockfile could only have postponed the discovery by pinning an older, compatible \texttt{bcrypt}, which trades one problem for another rather than solving anything. The actual lesson from that incident is about which dependencies to pick, not about how strictly their versions are pinned.
+
+What a lockfile would genuinely have bought me is reproducibility across the two machines I actually worked on, the Wavestone VM on Python 3.11 and a personal computer whose Python version drifted from it over time, in a setting where installing packages at all was already constrained by the corporate network described in Section~\ref{sec:pm-corporate-constraints}. Pinning exact versions once would have removed an entire class of ``works on one machine, not the other'' bugs that a short dependency list does not make disappear on its own, it only makes them rarer.
+
+\subsection{Benchmarking model sizes earlier}
+\label{sec:pm-benchmark-earlier}
+
+Section~\ref{sec:pm-model-arbitration} already owns up to the fact that the choice of \texttt{qwen2.5:3b} was never checked against the larger candidates on the project's own hardware, only reasoned about from their published sizes and the CPU constraint. If I were to redo this part of the project, I would put a small, even rough, benchmark of two or three model sizes on the actual target hardware early, before committing to one, rather than treating the decision as settled after the first model that produced usable output in acceptable time. It would not have changed the outcome, a CPU-only VM was never going to run a 7B model comfortably, but it would have turned a defensible guess into a documented comparison, which matters for a report whose whole premise is that choices should be traceable and justified rather than merely reasonable in hindsight.
+
+\subsection{Investing in documentation earlier}
+\label{sec:pm-documentation-earlier}
+
+Section~\ref{sec:pm-documentation-first} credits the documentation-first discipline, dated decisions logged in \texttt{ARCHITECTURE.md} alongside a living \texttt{CLAUDE.md}, with making this report possible to write with any precision. What is worth adding honestly is that this discipline was not there from the first commit. A working framework existed early, a sprint brief and a set of working rules in \texttt{CLAUDE.md}, but the practice of logging each decision, dated, with its reasoning, only became systematic once backend construction started; the scoring engine itself, together with its independent audit, predates it entirely.
+
+That timing is the one I would change. The scoring engine is the densest part of the project in terms of methodological decisions, the fixed order of the pipeline, the foundational gates, the consistency penalties, the corrections that came out of the audit, and it is exactly the part where I later had to reconstruct some of that reasoning after the fact rather than simply consulting a log, which is both slower and less reliable than writing it down when the decision was still fresh. If anything, this makes the case for documentation-first stronger, not weaker: I am not arguing for it in the abstract, I experienced its absence firsthand at the start of the project.
+
+\subsection{Other honest points}
+\label{sec:pm-other-points}
+
+% TODO: en attente, on y revient plus tard.
+
+\section{Skills mobilised and acquired}
+\label{sec:pm-skills}
+
+This project drew on skills built up over the engineering curriculum at TELECOM Nancy and through prior projects, and it also required learning several things I did not know how to do before starting. Both sides are worth naming explicitly. Neither list claims to be exhaustive, and distinguishing what I brought to the project from what it taught me is itself part of the critical account this chapter asks for.
+
+\subsection{Skills mobilised from prior training}
+\label{sec:pm-skills-mobilised}
+
+Four areas of prior training carried directly into this project, identified at its outset in the subject and skills analysis drawn up at the start of the internship and confirmed by how the work actually unfolded.
+
+Programming skills built through the TELECOM Nancy curriculum, Python in particular, and a general familiarity with JavaScript-based web frameworks, carried directly into both halves of the platform, the Python scoring engine and backend, and the Next.js frontend described in Chapter~\ref{chap:platform}. Prior exposure to security, risk analysis and an understanding of common threat classes, underpinned the access-control and authentication work covered in the same chapter, in particular the OWASP-driven reasoning behind the 401/403/404 policy and the centralised authorization module. Familiarity with Linux environments, built up before the internship, was exercised constantly, given that the whole platform was developed and run inside a Linux VM for the reasons discussed in Section~\ref{sec:pm-corporate-constraints}; prior exposure to containerization with Docker was mobilised more partially, since, as Chapter~\ref{chap:impact} notes, the project's own Docker Compose stack remains a planned rather than a built piece of the platform. Finally, the ability to work independently and to communicate progress and constraints to different stakeholders, a general project management skill rather than a technical one, was exercised throughout, from navigating the corporate environment constraints in Section~\ref{sec:pm-corporate-constraints} to gathering the informal practitioner feedback discussed in Chapter~\ref{chap:impact}.
+
+\subsection{Skills newly acquired}
+\label{sec:pm-skills-acquired}
+
+Several areas were genuinely new, and most of them map onto specific decisions documented earlier in this report. Deterministic scoring, designing and implementing a scoring pipeline whose output is fully reproducible and auditable from raw inputs, precisely because it is not allowed to depend on anything probabilistic, is the clearest example, and it is the subject of Chapter~\ref{chap:scoring-engine} in its entirety. Integrating a local large language model as a constrained advisory component, rather than as an open-ended assistant, required learning prompt design and output filtering specifically aimed at keeping a non-deterministic component safe to expose, anchoring generation to a fixed set of identifiers and discarding anything outside them, as described in Chapter~\ref{chap:platform} and reflected on in Section~\ref{sec:pm-model-reliability}. Methodological audit is another: having the scoring engine reviewed independently of its own implementation, and acting on the findings rather than treating the review as a formality, discussed in Chapter~\ref{chap:validation}, was not something I had practised before this project. Applied security architecture, translating a secure-by-design intent into concrete mechanisms, server-side sessions, centralised access control, password hashing, rather than leaving it as a stated principle, is covered across Chapter~\ref{chap:platform}. Finally, the project required building a working knowledge of the ENISA and NIS2 regulatory and methodological landscape, covered in Chapter~\ref{chap:context} and Chapter~\ref{chap:state-of-the-art}, specific enough to translate into a scoring framework rather than staying at the level of general awareness.
