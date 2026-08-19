@@ -122,18 +122,22 @@ choices I would defend or revisit.
 %     référentiel, anti-gaming (chacune sera « payée » en 5.2 / 5.3).
 % ---------------------------------------------------------------------
 
-The scoring specification has a concrete origin. The ENISA framework~\cite{enisa2024}
+\subsection{From a consulting need to a specification}
+
+The scoring specification has a concrete origin. The ENISA framework~\cite{enisa_crisis_mgmt_2024}
 describes sixteen best practices across four crisis phases, but it stops at
 description: it offers no way to measure how mature an organisation actually is
-against them. At the same time, the NIS2 directive~\cite{nis2} pushes organisations
+against them. At the same time, the NIS2 directive~\cite{nis2_directive_2022} pushes organisations
 to demonstrate crisis-management maturity, and the general-purpose self-assessments
 that exist, such as the CISA Cyber Resilience Review~\cite{cisacrr} or maturity
-ratings inspired by the NIST Cybersecurity Framework~\cite{nistcsf}, do not map
+ratings inspired by the NIST Cybersecurity Framework~\cite{nist_csf2_2024}, do not map
 cleanly onto ENISA or onto NIS2 obligations. The need is therefore a measurement tool
 that a Wavestone consultant can sit behind, in front of a client, to present a
 maturity figure and defend it. That single constraint drives every requirement in
 this section: a score that cannot be explained, or that rewards optimistic answers,
 carries little value in an audit setting, whatever the formula behind it.
+
+\subsection{The framework being scored}
 
 The engine scores an organisation against the ENISA \emph{Best Practices for Cyber
 Crisis Management} framework, encoded in a single file, \texttt{referential.yaml}
@@ -146,7 +150,7 @@ global score. Every phase groups several best practices (BPs), and every best
 practice is assessed through three questions.
 
 For each question, a respondent provides two things: a declared maturity level on a
-CMMI-style five-point scale~\cite{cmmi}, from 0 (\emph{Not in place}) to 4
+CMMI-style five-point scale~\cite{isaca_cmmi_cybermaturity}, from 0 (\emph{Not in place}) to 4
 (\emph{Optimized}), and the
 type of evidence backing the claim, from \texttt{no\_formal\_evidence} up to
 \texttt{real\_incident}. The evidence type carries real weight, since it sets a
@@ -154,6 +158,8 @@ ceiling on how high the declared maturity can count. This is the first line of
 defence against optimistic self-scoring. A best practice can also be marked
 \emph{Not Applicable} when it genuinely does not fit the organisation, within the
 strict limits detailed in Section~\ref{sec:se-pipeline}.
+
+\subsection{Rules carried by the referential}
 
 Beyond the questions themselves, the referential also carries the methodological
 adjustments that give the score meaning. Four best practices are flagged as
@@ -165,6 +171,8 @@ carries its own thresholds: a minimum score and a cap for the gates, a maximum g
 and a point penalty for the pairs. Keeping these values in the referential rather
 than in the code lets the framework evolve through a version bump, with no change
 to the engine.
+
+\subsection{Output contract and requirements}
 
 The output contract is where auditability is won or lost. The engine returns a full
 result object, \texttt{AssessmentResult}, holding the final score together with the
@@ -254,6 +262,8 @@ mechanisms that protect the two properties set out in Section~\ref{sec:se-spec}.
 Read in order, the pipeline turns a set of raw answers into a single defensible
 figure, and every intermediate value it produces is kept for the audit trail.
 
+\subsection{Capping declared maturity by evidence}
+
 The first stage acts on each question, before any aggregation. The declared
 maturity is capped by the evidence type: a level claimed with
 \texttt{no\_formal\_evidence} cannot count above 1, \texttt{documented} above 2,
@@ -263,6 +273,8 @@ cap. This stage is the engine's answer to the declarative bias of self-assessmen
 a confident claim with nothing to back it up is brought back to what the evidence
 supports, and the cap is recorded so the respondent can see why. The question score
 is then the effective maturity over 4, weighted by the question's own weight.
+
+\subsection{Aggregating to best practices and phases}
 
 The next stages aggregate upward. Question scores combine into a best-practice score
 on a 0 to 100 scale, and best-practice scores combine into a phase score using their
@@ -274,6 +286,8 @@ combine into the raw global score, where each of the four phases counts for exac
 the structural imbalance noted earlier: left alone, Preparedness and its nine best
 practices would speak far louder than Response or Recovery with two each.
 
+\subsection{Foundational gates}
+
 With a raw global score in hand, the engine applies the foundational gates. If a
 foundational best practice (BP04, BP07, BP08 or BP12) scores below its required
 minimum of 40, the global score is capped at the value set for that gate, between 60
@@ -282,6 +296,8 @@ cap wins. The gates encode a simple idea: some practices are prerequisites, and 
 serious weakness in governance or coordination should hold the whole score down,
 however strong the rest looks. A high average cannot paper over a missing
 foundation.
+
+\subsection{Consistency penalties and finalisation}
 
 The engine then applies the consistency penalties, the most original mechanism of
 the model. Three pairs of best practices are expected to move together: exercises
@@ -296,6 +312,8 @@ neglecting the practice that should support it. Penalties are cumulative, and th
 score is floored at 0. A final stage maps the resulting score onto the five global
 maturity levels, from \emph{Not in place} to \emph{Optimized}, for reporting to an
 executive audience.
+
+\subsection{Why gates come before penalties}
 
 The order of the last two mechanisms is a deliberate choice, and it changes the
 result. Consider an assessment whose raw global score is 72, where a foundational
@@ -353,7 +371,7 @@ not an average of them.
   \label{fig:se-pipeline}
 \end{figure}
 
-\subsection*{A worked example}
+\subsection{A worked example}
 The example below follows a single assessment through the pipeline. It is
 deliberately simple, chosen so that one run triggers an evidence cap, a foundational
 gate and a consistency penalty, with each mechanism visible in turn.
@@ -403,6 +421,8 @@ Table~\ref{tab:se-worked-example} gives the running value after each stage.
 %     « bridge », score recalculé à la volée et jamais stocké (P1).
 % ---------------------------------------------------------------------
 
+\subsection{Two principles, expressed in code}
+
 The specification of Section~\ref{sec:se-spec} and the pipeline of
 Section~\ref{sec:se-pipeline} translate into a codebase whose shape is driven by two
 of the inviolable principles set out in Chapter~\ref{chap:method}: determinism (P1)
@@ -411,6 +431,8 @@ synchronous function with no I/O and no randomness. The same input always produc
 the same output. That property is what turns reproducibility and auditability from
 intentions into facts: any score can be recomputed at will, and there is no hidden
 state to explain away when defending a figure.
+
+\subsection{One module per pipeline stage}
 
 The code mirrors the pipeline one module at a time. A \texttt{referential\_loader}
 reads and validates the YAML, an \texttt{evidence} module applies the caps, an
@@ -423,6 +445,8 @@ Section~\ref{sec:se-pipeline} rather than hiding it under machinery.
 Listing~\ref{lst:se-engine} shows that routine, and
 Figure~\ref{fig:se-modules} shows the decomposition.
 
+\subsection{Three families of data models}
+
 The data models are split into three families that the engine keeps deliberately
 apart: the referential models, which hold the framework loaded from the YAML; the
 input models, which hold the raw answers a respondent provides; and the output
@@ -430,6 +454,8 @@ models, built around the \texttt{AssessmentResult} audit trace. The separation k
 three questions from ever being confused: what the framework says, what the user
 claimed, and what the engine concluded. It also anticipates the platform, where the
 database stores the raw inputs while the result stays recomputable on demand.
+
+\subsection{Defensive design and guaranteed bounds}
 
 Defensive design runs through the whole package. The referential models are frozen
 and reject unknown fields, so the framework cannot be mutated after loading and a
@@ -445,6 +471,8 @@ surfaces as a validation error rather than as an implausible score reaching a
 client. The package is fully typed throughout. Taken one by one these guarantees are
 modest, but together they make the engine hard to break quietly, which is exactly
 what a component whose output has to be trusted in front of a client needs.
+
+\subsection{A deliberately isolated core}
 
 The engine stays deliberately unaware of everything around it: no database, no web
 framework, no configuration beyond the path to the referential. When the platform is
@@ -573,6 +601,8 @@ def score_assessment(
 %     (points absolus assumés), bump du référentiel -> 1.1.0, 70 tests au total.
 % ---------------------------------------------------------------------
 
+\subsection{The test suite}
+
 An engine is only as trustworthy as the tests that pin its behaviour down, and here
 the tests carry an unusual weight, since the whole point of the engine is to be
 defended figure by figure. The suite is organised by pipeline stage, so each
@@ -584,6 +614,8 @@ byte for byte. A parametrised sweep over many answer combinations proves that th
 score always lands within 0 to 100, and the loader's failure cases (a missing file,
 malformed YAML, a missing field) are covered as well. At the point of the audit the
 suite held 64 tests, all green.
+
+\subsection{An independent audit and its blind spots}
 
 To get an outside view before any platform work began, the engine, the referential
 and the documentation were put through an independent, read-only audit. It rated the
@@ -606,6 +638,8 @@ direction. The audit also flagged two referential fields that were loaded and
 validated but never actually read (\texttt{global\_weight} and
 \texttt{foundational\_can\_be\_na}), along with an undocumented rounding convention.
 Table~\ref{tab:se-audit} lists the findings and how each was closed.
+
+\subsection{The corrective loop}
 
 The corrections followed a deliberate order, and the order is the point. A safety
 net came first: three targeted tests were written before any production code was
@@ -674,6 +708,8 @@ rather than provable, is the subject of the next section.
 %     ni de justifications N/A).
 % ---------------------------------------------------------------------
 
+\subsection{Defensible, not provable}
+
 The engine is deterministic and has been audited, but a few of its choices are
 matters of expert judgement, defensible rather than provable. Setting them out
 plainly is part of the same engineering honesty that drove the audit, and it is also
@@ -689,6 +725,8 @@ would be a sensitivity analysis, showing how much the global score moves when a 
 or a threshold is shifted, so that the numbers can be discussed on evidence instead
 of on authority alone.
 
+\subsection{Measuring demonstrable maturity}
+
 A second choice worth stating openly is that the consistency penalty compares
 effective maturity, measured after the evidence cap. A practice that is rated highly
 but backed by weak evidence is capped, and can therefore trigger a penalty against a
@@ -696,6 +734,8 @@ better-evidenced neighbour. This is deliberate: the model rewards maturity that 
 be demonstrated rather than merely declared. It deserves to be said out loud, because
 comparing declared maturity instead is equally easy to implement and would simply
 need a different justification.
+
+\subsection{Smaller deliberate choices}
 
 A few smaller decisions are of the same kind. The four phases carry equal weight, a
 structural choice that stops Preparedness and its nine best practices from drowning
@@ -706,12 +746,16 @@ rounded to the nearest even value at the level boundaries. None of these is
 controversial on its own, yet each is a decision a careful reader could question, so
 each is documented and covered by a test instead of left implicit.
 
+\subsection{A caveat on N/A}
+
 One behaviour deserves a direct caveat for anyone reading a generated report. Since
 an N/A best practice leaves its phase entirely, marking both practices of a short
 phase as N/A makes that phase drop out of the global score rather than scoring zero.
 That is consistent with treating N/A as neutral, but it means a result has to be read
 as a phase that was not assessed, rather than a phase that scored nothing, and the
 interface has to carry that distinction so a reader is never misled.
+
+\subsection{What the engine enables next}
 
 Set against these limits, the two properties the chapter opened with are what give
 the engine value beyond this single project. Because the score is deterministic and

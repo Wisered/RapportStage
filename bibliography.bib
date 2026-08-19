@@ -1,3 +1,16 @@
+% =============================================================
+% bibliography.bib — base bibliographique UNIQUE du mémoire
+% =============================================================
+% Fusion de : example.bib (template) + references-partagees.bib +
+% references_chapitre3.bib + entrées propres (Wavestone, Chapitre 5).
+% Pointée par Rapport_Stage.tex via \bibliography{bibliography}.
+%
+% Politique de clés : une seule clé par source. Les références partagées
+% par plusieurs chapitres utilisent les clés canoniques ci-dessous ; le
+% Chapitre 5 a été réaligné sur ces clés (voir §Chapitre 5 en bas).
+% Statut de vérification hérité du Ch3 : [VÉRIFIÉ] / [REPRIS].
+% =============================================================
+
 @Book{GOT4,
   author    = {George R.R. Martin},
   title     = {{A Feast for Crows (A Song of Ice and Fire)}},
@@ -16,22 +29,9 @@
 }
 
 % =============================================================
-% Références bibliographiques — Chapitre 3 (State of the Art)
+% Références PARTAGÉES (plusieurs chapitres) — clés canoniques.
+% Citées par le Ch3 ET le Ch5.
 % =============================================================
-% À fusionner dans votre .bib local. Toutes les clés ci-dessous sont déjà
-% citées telles quelles dans chapters/03_state_of_the_art.tex.
-%
-% Statut de vérification (voir claude/verification-references-chapitre3.md
-% dans le projet pour le détail des sources consultées) :
-%   [VÉRIFIÉ]   contrôlé indépendamment (web, DOI/venue confirmés)
-%   [REPRIS]    repris tel quel du draft original, non re-vérifié par mes soins
-%
-% Références PARTAGÉES avec d'autres chapitres (NIS2, ENISA, ISO 27035/27005) :
-% la source canonique est claude/references-partagees.bib dans le projet.
-% Ne changez pas ces clés sans mettre à jour ce fichier partagé aussi.
-% =============================================================
-
-% --- Partagées avec d'autres chapitres (cf. claude/references-partagees.bib) ---
 
 @misc{nis2_directive_2022,
   title        = {Directive (EU) 2022/2555 of the European Parliament and of the Council of 14 December 2022 on measures for a high common level of cybersecurity across the Union (NIS2 Directive)},
@@ -61,9 +61,7 @@
   howpublished = {\url{https://www.iso.org/standard/80585.html}}
 }
 
-% --- Spécifiques au Chapitre 3 ---
-
-% [VÉRIFIÉ]
+% [VÉRIFIÉ] — citée par Ch3 et Ch5
 @techreport{nist_csf2_2024,
   author      = {Pascoe, Cherilyn and Quinn, Stephen and Scarfone, Karen},
   title       = {The {NIST} Cybersecurity Framework ({CSF}) 2.0},
@@ -75,13 +73,17 @@
   doi         = {10.6028/NIST.CSWP.29}
 }
 
-% [REPRIS, non re-vérifié]
+% [REPRIS, non re-vérifié] — citée par Ch3 et Ch5 (échelle CMMI-style)
 @misc{isaca_cmmi_cybermaturity,
   author       = {{ISACA}},
   title        = {{CMMI} Cybermaturity Platform, Self-assessment methodology},
   howpublished = {\url{https://www.isaca.org/enterprise/cmmi-cybermaturity-platform}},
   note         = {Accessed June 2026}
 }
+
+% =============================================================
+% Spécifiques au Chapitre 3 (State of the Art)
+% =============================================================
 
 % [REPRIS, non re-vérifié]
 @techreport{ffiec_cat_2017,
@@ -192,4 +194,21 @@
   title     = {Self-Consistency Improves Chain of Thought Reasoning in Language Models},
   booktitle = {Proceedings of the International Conference on Learning Representations (ICLR)},
   year      = {2023}
+}
+
+% =============================================================
+% Spécifiques au Chapitre 5 (Scoring Engine)
+% =============================================================
+% Le Ch5 réutilise les clés partagées ci-dessus pour ENISA
+% (enisa_crisis_mgmt_2024), NIS2 (nis2_directive_2022), NIST CSF
+% (nist_csf2_2024) et l'échelle CMMI-style (isaca_cmmi_cybermaturity).
+% Seule référence propre au Ch5 :
+
+% [VÉRIFIÉ] CISA Cyber Resilience Review
+@techreport{cisacrr,
+  author      = {{Cybersecurity and Infrastructure Security Agency (CISA)}},
+  title       = {Cyber Resilience Review ({CRR}): Method Description and Self-Assessment User Guide},
+  institution = {U.S. Department of Homeland Security},
+  year        = {2020},
+  note        = {\url{https://www.cisa.gov/resources-tools/services/cyber-resilience-review-crr}}
 }
