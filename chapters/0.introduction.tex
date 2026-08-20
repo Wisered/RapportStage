@@ -1,0 +1,115 @@
+\chapter{Introduction}
+\label{chap:introduction}
+\emergencystretch=3em\relax
+
+The Projet de Fin d'\'Etudes closes the engineering curriculum at TELECOM
+Nancy, and it is the first time the things learned separately over three years
+have to hold together on a single real problem, in a real organisation, with a
+deadline that belongs to someone else. Two threads of that curriculum met in
+this internship. The first is software that has to be correct, where the
+interesting part of the work is establishing that a program does what it claims
+rather than making it run at all. The second is security understood as a
+discipline of anticipating failure rather than as a list of measures to apply.
+A third element was new to me: large language models, which I had used as a
+tool without ever having been responsible for making one safe to put in front
+of someone else. This subject offered all three at once, which is why I chose
+it.
+
+The internship took place at Wavestone, an independent management and
+technology consulting group, within its Cyber practice in Luxembourg, a team of
+around twenty consultants whose work includes crisis management exercises,
+security audits and consulting missions for clients drawn largely from the
+financial sector, the insurance sector and the European institutions. The
+practice had a recurring difficulty, described at greater length in
+Chapter~\ref{chap:framing}: before designing a crisis exercise or a mission for
+a client, a consultant needs to know where that organisation actually stands,
+and there was no structured way to establish it. The conversation opened either
+on a generic checklist or on the consultant's own experience, and neither
+produces something a client can audit afterwards or compare across engagements.
+The mission entrusted to me, titled ``Cyber Crisis Management Maturity
+Self-Assessment Platform'', set out to give that conversation a defensible
+starting point.
+
+Behind an internal need of this kind sits a broader one. In February 2024,
+ENISA published \emph{Best Practices for Cyber Crisis Management}, which
+organises the discipline into sixteen best practices distributed across the
+four phases of a crisis, prevention, preparedness, response and recovery. It is
+the European reference text on the subject, and the NIS2 directive expects
+entities in essential and important sectors to be able to demonstrate a
+crisis-management capability rather than simply assert one. Yet the ENISA study
+is descriptive: it specifies what good crisis management looks like without
+offering a scale, an evidence standard, or any way to turn sixteen qualitative
+judgements into a single figure. Existing self-assessment instruments do not
+close that distance either, since they were designed independently of ENISA's
+structure and of NIS2's obligations. An organisation that must show how mature
+it is has no purpose-built instrument with which to find out.
+
+This is the problem the thesis addresses, and it is an engineering problem more
+than a documentary one. Turning a descriptive framework into a working
+instrument means answering a specific question: how can a declarative,
+inherently subjective self-assessment be turned into a score that a consultant
+can defend figure by figure in front of a client's security and governance
+leadership, months after the fact, without the computation depending on
+anything that cannot be reproduced, and without the assessment data, which is
+in effect a map of an organisation's cyber weaknesses, ever leaving the
+organisation's own infrastructure? The answer built during this internship
+rests on three decisions. The framework itself lives in a single specification
+file that no code is allowed to duplicate. A deterministic engine, written in
+pure Python and holding no artificial intelligence at any stage, computes the
+score from that file and the respondent's answers alone. A local language
+model, running on the user's own hardware, is confined strictly downstream of
+that computed result, where it writes narrative recommendations and can never
+reach back into the number. Around this core sits a full web platform with real
+authentication and per-owner access control. Whether that answer holds, and
+what it leaves unresolved, is what the rest of this report examines.
+
+The document is organised in nine chapters. Chapter~\ref{chap:framing}
+introduces Wavestone, the Luxembourg Cyber practice, the mission itself and the
+working constraints that shaped several later technical choices, before
+connecting the company's initial need to the problem developed next.
+
+Chapter~\ref{chap:context} sets out the economic, regulatory and methodological
+context: cyber crises as a distinct capability from cybersecurity in general,
+what NIS2 obliges organisations to demonstrate, how the ENISA framework answers
+that expectation, and the precise gap that remains between the two.
+
+Chapter~\ref{chap:state-of-the-art} reviews what already exists, general and
+sector-specific maturity models, academic work on crisis-management maturity,
+and the literature on using language models in sensitive domains, and states
+where this thesis positions itself against all three.
+
+Chapter~\ref{chap:method} states the approach that governed every later choice:
+how the project was run sprint by sprint, the central idea of separating
+deterministic scoring from AI augmentation, the five principles fixed at the
+outset and never revisited, and the main alternatives that were considered and
+rejected.
+
+Chapter~\ref{chap:scoring-engine} is the core of the report. It presents the
+scoring specification, the fixed-order pipeline that turns answers into a
+score, the architecture of the engine itself, the testing strategy and the
+independent audit it went through, and a critical reflection on the choices
+within it that remain matters of judgement.
+
+Chapter~\ref{chap:platform} describes the platform built around that engine,
+the backend, the frontend, the authentication and access-control model, the
+integration of the local language model, and the operational and networking
+choices that kept the whole stack working across a virtual machine boundary.
+
+Chapter~\ref{chap:validation} asks whether the result does what it claims. It
+presents the three layers of testing, follows one assessment profile from raw
+score to final score, evaluates the AI layer against its own guardrails, and
+states the limitations that bound how much weight a result from this tool
+should carry.
+
+Chapter~\ref{chap:impact} steps back to ask what the tool is worth, to the
+consulting practice, to the client organisations it targets, and to the wider
+question of using language models responsibly in a regulated context, before
+setting out the directions left open.
+
+Chapter~\ref{chap:pm} turns from what was built to how it was built: the
+working method in retrospect, the difficulties encountered and what each cost,
+what I would do differently, and the skills the project drew on and left me
+with.
+
+The conclusion returns to the question posed above and states what was
+established, what was not, and what the whole exercise taught me.

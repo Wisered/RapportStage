@@ -1,0 +1,103 @@
+\chapter{Conclusion}
+\label{chap:conclusion}
+\emergencystretch=3em\relax
+
+This work began from a mismatch stated in Chapter~\ref{chap:context}. ENISA's
+\emph{Best Practices for Cyber Crisis Management} describes sixteen best
+practices distributed across the four phases of a crisis, and the NIS2
+directive expects regulated entities to demonstrate a crisis-management
+capability rather than simply assert one, yet neither text provides a way to
+measure how far an organisation currently stands from that standard. That
+chapter turned the mismatch into three constraints that shaped everything built
+afterwards: the result has to survive scrutiny from a client's own governance
+and security leadership, the referential rather than the tool has to remain the
+source of truth, and the instrument has to be usable by a consultant leading a
+client conversation rather than only by someone with deep prior expertise in
+the ENISA text.
+
+The answer built during this internship starts with the referential itself.
+\texttt{referential.\allowbreak yaml} encodes the sixteen best practices as
+forty-eight questions across four phases weighted equally at twenty-five per
+cent each, a maturity scale from zero to four, evidence caps that bound a
+declared level by the strongest evidence the respondent claims, four
+foundational gates, consistency penalties between related practices, and an
+N/A option that is neutral to the score. Making that file the only
+specification of the framework, principle P4 in Chapter~\ref{chap:method}, is
+what allows the framework to be reviewed by reading one artefact instead of
+reconstructing it from scattered code. On top of it sits a pure Python engine
+with a fixed pipeline order, evidence cap, phase-weighted aggregation,
+foundational gate, then consistency penalty, described in
+Chapter~\ref{chap:scoring-engine}. The engine went through a methodological
+audit conducted independently of its own implementation, whose recommendations
+were integrated into the code before any platform work began, with the
+referential incremented from 1.0.0 to 1.1.0 to record the resulting change of
+contract.
+
+Around that core, Chapter~\ref{chap:platform} describes the platform that makes
+the engine usable: a FastAPI backend and a Next.js frontend, with a single
+translation seam, \texttt{scoring\_\allowbreak bridge.\allowbreak py}, as the
+only place allowed to turn a stored assessment into the engine's input, so that
+two endpoints can never disagree on the same assessment's score. Real
+authentication was built during the internship, with invitation-based account
+creation, server-side cookie sessions, three roles, per-owner isolation of
+assessments, and access control centralised in one module rather than
+re-implemented per route. The local AI stage runs entirely through Ollama, sits
+strictly downstream of a fully computed result, receives no organisation name,
+identifier or justification text, has its output normalised and checked against
+the referential before anything reaches the user, and degrades to the
+referential's own static recommendations on any failure. The whole is covered
+by 141 automated tests, seventy for the scoring engine and seventy-one for the
+API and the backend integration, reported in Chapter~\ref{chap:validation}.
+
+Chapter~\ref{chap:state-of-the-art} situated this against what already exists,
+and the space it identified was genuinely empty. General maturity instruments
+such as NIST CSF or ISACA's CMMI Cybermaturity Platform treat crisis management
+as one dimension among many, sector-specific tools are tied to a single
+regulatory context, and academic proposals remain frameworks rather than
+deployed instruments; ENISA's own maturity work targets CSIRTs and national
+authorities rather than organisation-level crisis preparedness. No published
+instrument operationalises the ENISA 2024 framework into a scorable
+self-assessment for organisations subject to NIS2. The three positions that
+define this project, ENISA operationalisation, a strict separation between
+deterministic scoring and AI-generated narrative, and local inference, are the
+three the state of the art left converging on an unoccupied point. What this
+work contributes is one concrete occupation of that point, built and tested
+rather than specified.
+
+That contribution should be read within its limits, which
+Chapter~\ref{chap:scoring-engine} and Chapter~\ref{chap:validation} state at
+length. The assessment remains declarative, and the evidence caps only bound
+how far a favourable answer can inflate a score. The thresholds the model
+relies on come from expert judgement rather than from calibration on data. No
+inter-rater study was run, and the AI layer was shown to be safe to expose
+without being shown to produce good advice. The platform has also not yet been
+used on a real client engagement.
+
+What this project gave me, beyond the artefact, is a particular way of
+approaching an engineering problem. The value of the scoring engine lies as
+much in what it is forbidden to do as in what it computes, and designing a
+component around its own constraints, rather than around its features, was new
+to me. So was containing a non-deterministic component inside a system that
+still has to be defensible, which turned out to be less a question of trusting
+the model and more a question of building everything around it on the
+assumption that it will occasionally be wrong. The independent audit taught me
+that a suite of green tests can be reassuring precisely where it is blind, and
+the documentation-first discipline discussed in Chapter~\ref{chap:pm} taught me
+its own value largely through its absence at the start of the project, since
+the scoring engine, the densest part of the work in methodological decisions,
+is the one part whose reasoning I later had to reconstruct rather than consult.
+
+Several directions remain open, and Chapter~\ref{chap:impact} sets them out in
+detail rather than here: article-level mapping to NIS2 and ISO/IEC 27035,
+retrieval over the source texts, tracking a client's maturity over successive
+assessments, and the infrastructure work a real deployment would require. The
+one worth closing on is more general. The pattern this project instantiates,
+computing a defensible result with conventional logic first and letting a
+language model explain or prioritise that result afterwards, owes nothing to
+cyber crisis management in particular. It applies wherever an organisation
+needs an auditable output alongside natural-language assistance, which is a
+large share of what compliance and maturity work actually consists of. Whether
+it generalises is a question the next project to try it will answer. This
+thesis instantiates that pattern once, in one domain, and demonstrates that
+doing so is compatible with keeping every piece of client data inside the
+organisation's own infrastructure.
