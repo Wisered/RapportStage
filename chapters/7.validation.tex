@@ -118,12 +118,13 @@ new tests specifically targeting a gap the audit had identified (see
 suite, which exercised only the two endpoints required by the end of Sprint
 0, \texttt{test\_health.py} and \texttt{test\_referential\_endpoint.py}, grew
 alongside every backend feature landed afterward, assessments, scoring,
-authentication and access control, and now counts 141 tests. This figure
-covers a wider perimeter than the engine suite above and should not be
-merged with it, three of these 141 tests are dedicated specifically to a
-privacy guarantee, that neither N/A justification text nor any personal
-identifier ever reaches the AI prompt, which Section~\ref{sec:validation-failure-modes}
-returns to.
+authentication and access control, and now counts 71 tests. A single
+\texttt{pytest} run from \texttt{backend/} collects both suites, so the
+figure that describes the platform as a whole is 141 tests, 70 for the
+engine and 71 for the API and the backend integration. Three of these 71
+backend tests are dedicated specifically to a privacy guarantee, that
+neither N/A justification text nor any personal identifier ever reaches the
+AI prompt, which Section~\ref{sec:validation-failure-modes} returns to.
 
 \subsection{Deterministic testing philosophy}
 \label{sec:validation-deterministic-philosophy}
@@ -170,9 +171,9 @@ a subtle error, ordering, thresholds, and edge conditions.
 \end{table}
 
 The last three rows were added after an independent audit of the engine
-found that the consistency-penalty branch, one of the two original
-correction mechanisms of the model, was never exercised by any test (finding
-H1, \ref{chap:scoring-engine}). This is worth dwelling on briefly. A
+found that the consistency-penalty branch, one of the two corrective
+mechanisms that can lower an already-aggregated score, was never exercised
+by any test (finding H1, \ref{chap:scoring-engine}). This is worth dwelling on briefly. A
 64-test suite is a good headline number, but it had a gap precisely where
 the model's own differentiating logic lived. The three tests added close
 that gap without touching a single line of production code, they capture
@@ -241,19 +242,20 @@ it exercises the same fixed pipeline order on a different combination of
 inputs and should not be merged with it.
 
 Table~\ref{tab:validation-worked-example} follows the \texttt{penalized}
-test profile through the pipeline. The four phase scores it produces, 75
-for Prevention, 68 for Preparedness, 75 for Response, and 36 for Recovery,
-average to a raw global score of 63 under the referential's equal 25
-percent phase weighting. BP08, a foundational best practice, scores 0 on
+test profile through the pipeline. The four phase scores it produces,
+rounded for display as 75 for Prevention, 68 for Preparedness, 75 for
+Response, and 36 for Recovery, average to an unrounded raw global score of
+63.4 under the referential's equal 25 percent phase weighting, which the
+dashboard reports as 63. BP08, a foundational best practice, scores 0 on
 this profile, well below its 40-point threshold, which triggers its
-foundational gate and caps the global score at 65. Because the raw score of
-63 already sits below that cap, the gate is recorded as applied but does not
+foundational gate and caps the global score at 65. Because the raw score
+already sits below that cap, the gate is recorded as applied but does not
 move the number, an instructive edge case, a gate can fire without being the
 binding constraint. Three consistency pairs then trigger simultaneously,
 BP10 against BP11, BP07 against BP08, and BP05 against BP15, each with a
 maturity gap of 4.0 against an allowed maximum of 2, each deducting 5
 points. The three penalties bring the score down by 15 points in total,
-from 63 to a final global score of 48 (48.4 before rounding), mapped to
+from 63.4 to 48.4, rounded to a final global score of 48 and mapped to
 maturity level 2, Defined.
 
 \begin{table}[htbp]
@@ -276,9 +278,10 @@ This example is a useful counterpoint to a purely additive reading of the
 model. A respondent looking only at individual best-practice scores could
 reasonably expect a global score closer to the mid-sixties. The gap between
 that expectation and the actual 48 is exactly the point of the two
-correction mechanisms, a single very weak foundational best practice and a
-pattern of inconsistent maturity across related practices both leave a
-visible mark on the final number, which is the intended, auditable
+corrective mechanisms that can lower an already-aggregated score, a single
+very weak foundational best practice and a pattern of inconsistent maturity
+across related practices both leave a visible mark on the final number,
+which is the intended, auditable
 behaviour rather than a computational surprise.
 
 \section{AI evaluation}
@@ -335,8 +338,10 @@ anchored to the exact list of best-practice identifiers relevant to the
 assessment and carries no personally identifiable information, no
 organization name, no identifiers, no N/A justification text (principle P3).
 
-Two guardrails sit downstream of generation, before any text reaches the
-user. First, identifier normalization corrects the shapes a small model
+That prompt anchoring is the first of the three guardrails introduced in
+\ref{chap:platform}. The other two sit downstream of generation, before any
+text reaches the user. First, identifier normalization corrects the shapes a
+small model
 tends to produce, a bare \texttt{BP4} is padded to \texttt{BP04}, but a fused
 identifier such as \texttt{BP123} is rejected outright rather than guessed
 apart into \texttt{BP01} and \texttt{BP23}, since splitting it would be
@@ -345,14 +350,14 @@ Second, every normalized identifier is checked for existence against the
 loaded referential, an action citing a best practice that is not in the
 framework, such as a fabricated \texttt{BP18} on a referential that only
 defines sixteen, is discarded rather than shown. This combines two of the
-three hallucination-mitigation strategies surveyed in
+main hallucination-mitigation strategies surveyed in
 Chapter~\ref{chap:state-of-the-art}, prompt grounding, anchoring generation
 to a fixed, explicitly provided context, and post-generation validation,
 treating the output as untrusted and checking it deterministically before
-it reaches the user. The third strategy surveyed there, retrieval-augmented
-generation proper, is not used here, the anchor is a fixed list rather than
-a retrieved one, since the sixteen best practices are few enough to inject
-in full rather than search over.
+it reaches the user. Retrieval-augmented generation proper, also surveyed
+there, is not used here, the anchor is a fixed list rather than a retrieved
+one, since the sixteen best practices are few enough to inject in full
+rather than search over.
 
 The result is that a hallucinated identifier or a malformed response is a
 degraded response, not an incorrect one, the worst case is losing the

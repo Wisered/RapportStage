@@ -316,12 +316,14 @@ therefore imposed by the platform's subject matter rather than decided
 purely on technical merit.
 
 Once local inference was fixed, the sizing question reproduced a smaller
-version of the same trade-off. The referential lists several 7B-class
+version of the same trade-off. The referential lists four larger
 candidates for the local model, \texttt{mistral:7b-\allowbreak instruct},
 \texttt{mixtral:8x7b}, \texttt{llama3.1:\allowbreak 8b}, and
-\texttt{qwen2.5:\allowbreak 7b}, none of which is what the platform actually
-runs: the model deployed is \texttt{qwen2.5:\allowbreak 3b}, smaller than any
-of them. None of the larger candidates was actually benchmarked on the
+\texttt{qwen2.5:\allowbreak 7b}, three of them in the 7 to 8 billion
+parameter range and the fourth a mixture-of-experts model, none of which is
+what the platform actually runs: the model deployed is
+\texttt{qwen2.5:\allowbreak 3b}, smaller than any of them.
+None of the larger candidates was actually benchmarked on the
 project's hardware, only the deployed 3B model's generation time was
 measured, at roughly a minute on the CPU-bound machine used for the demo.
 The choice of the smaller model rested on the reasonable expectation that a

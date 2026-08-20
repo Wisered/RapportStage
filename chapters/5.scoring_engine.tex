@@ -156,8 +156,10 @@ type of evidence backing the claim, from \texttt{no\_formal\_evidence} up to
 \texttt{real\_incident}. The evidence type carries real weight, since it sets a
 ceiling on how high the declared maturity can count. This is the first line of
 defence against optimistic self-scoring. A best practice can also be marked
-\emph{Not Applicable} when it genuinely does not fit the organisation, within the
-strict limits detailed in Section~\ref{sec:se-pipeline}.
+\emph{Not Applicable} when it genuinely does not fit the organisation, within strict
+limits: at most three per assessment, never on a foundational best practice, and
+always with a written justification of at least fifty characters.
+Section~\ref{sec:se-pipeline} shows what that marking then does to the score.
 
 \subsection{Rules carried by the referential}
 
@@ -209,7 +211,6 @@ and the code deliver each one.
     \toprule
     Phase & \# Best practices & \# Questions & Phase weight \\
     \midrule
-    % TODO : compléter avec les vraies valeurs du référentiel
     Prevention   & 3  & 9  & 25\,\% \\
     Preparedness & 9  & 27 & 25\,\% \\
     Response     & 2  & 6  & 25\,\% \\
@@ -311,7 +312,28 @@ targets incoherent profiles, where an organisation rates one practice highly whi
 neglecting the practice that should support it. Penalties are cumulative, and the
 score is floored at 0. A final stage maps the resulting score onto the five global
 maturity levels, from \emph{Not in place} to \emph{Optimized}, for reporting to an
-executive audience.
+executive audience. Table~\ref{tab:se-levels} gives the bands, which tile the whole
+0 to 100 range with no gap and no overlap.
+
+
+% -- Emplacement tableau : bandes de score -> niveau de maturite global
+\begin{table}[htbp]
+  \centering
+  \caption{Mapping from the final global score to the global maturity level.}
+  \label{tab:se-levels}
+  \begin{tabular}{@{}ccl@{}}
+    \toprule
+    Global score & Level & Label \\
+    \midrule
+    0--20   & 0 & \emph{Not in place} \\
+    21--40  & 1 & \emph{Ad hoc} \\
+    41--60  & 2 & \emph{Defined} \\
+    61--80  & 3 & \emph{Implemented} \\
+    81--100 & 4 & \emph{Optimized} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 
 \subsection{Why gates come before penalties}
 
@@ -618,9 +640,9 @@ suite held 64 tests, all green.
 \subsection{An independent audit and its blind spots}
 
 To get an outside view before any platform work began, the engine, the referential
-and the documentation were put through an independent, read-only audit. It rated the
-work 16.5 out of 20, and, more usefully, it surfaced two real blind spots that a set
-of green tests had kept out of sight.
+and the documentation were put through an independent, read-only audit. It returned
+five findings, and the two rated high severity are what made it worth doing, two
+real blind spots that a set of green tests had kept out of sight.
 
 The first and sharpest finding (H1) concerned the consistency penalty, the model's
 most original mechanism. No test ever exercised it. Every golden scenario used a
