@@ -28,7 +28,7 @@ those two chapters were already drafted, once the implementation had
 settled enough to state the reasoning behind it clearly, rather than as it
 was being discovered along the way.
 
-The chapter is organized in four parts. Section~\ref{sec:working-method}
+The chapter is organised in four parts. Section~\ref{sec:working-method}
 describes how the project was run sprint by sprint. Section~\ref{sec:core-idea}
 states the central design idea of the platform, the separation between
 deterministic scoring and AI augmentation, and why it answers the problem
@@ -40,7 +40,7 @@ the alternatives that were considered and rejected.
 \section{Working method}
 \label{sec:working-method}
 
-The project was organized as a sequence of bounded sprints, each defined by
+The project was organised as a sequence of bounded sprints, each defined by
 a written brief and closed by an explicit Definition of Done. Sprint~0, for
 instance, listed eight verifiable conditions to meet before the sprint
 could be considered closed, from every scoring engine test passing to a
@@ -73,7 +73,7 @@ rather than reconstructed from memory for this report.
     2 & Introducing LangChain, LlamaIndex, or any AI framework on top of Ollama. \\
     3 & Letting the AI compute or modify a score. \\
     4 & Hardcoding referential text in Python or TypeScript instead of loading it. \\
-    5 & Reintroducing anonymous access or bypassing the centralized auth layer. \\
+    5 & Reintroducing anonymous access or bypassing the centralised auth layer. \\
     6 & Splitting the stack into microservices. \\
     7 & Relying on implicit SQLAlchemy lazy loading where it can hide N+1 queries. \\
     8 & Committing \texttt{.env} files or other secrets. \\
@@ -90,7 +90,7 @@ involved. The engine carries seventy tests, including golden scenarios
 that double as an executable specification of the scoring rules, and it
 went through an audit that fed corrections back into the code before the
 engine was integrated into the backend. The audit was carried out by a
-separate, freshly initialized review with no prior exposure to the
+separate, freshly initialised review with no prior exposure to the
 implementation, which is what makes it independent, rather than by a
 third-party reviewer. Its testing strategy and the audit itself are
 detailed in Chapter~\ref{chap:scoring-engine}, which this chapter does not
@@ -176,7 +176,7 @@ to influence it.
 
 The five principles listed in this section were fixed at the start of the
 project, stated together in a single reference document, and never
-revisited afterward. Table~\ref{tab:principles-summary} summarizes them;
+revisited afterward. Table~\ref{tab:principles-summary} summarises them;
 each is then justified in turn, together with a note on where it is
 enforced and where its consequences are detailed further in this report.
 
@@ -190,7 +190,7 @@ enforced and where its consequences are detailed further in this report.
     P2 -- Local-first & All language model inference runs on a local Ollama instance; no assessment data ever reaches an external API. \\
     P3 -- Secure by design & Data sensitivity drives the architecture, from encryption at rest to input validation and a single access-control module. \\
     P4 -- Single source of truth & \texttt{referential.\allowbreak yaml} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
-    P5 -- Auth schema from day one & The data model carries users, organizations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
+    P5 -- Auth schema from day one & The data model carries users, organisations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
     \bottomrule
   \end{tabular}
   \caption{The five inviolable principles}
@@ -221,11 +221,11 @@ hosted Ollama instance. No assessment data is ever sent to an external
 API, whether OpenAI, Anthropic, or a cloud-hosted Mistral endpoint. This
 is a hard constraint rather than a preference for cost or latency reasons:
 the NIS2 directive discussed in Chapter~\ref{chap:context} pushes
-organizations toward demonstrable sovereignty over the data they process,
+organisations toward demonstrable sovereignty over the data they process,
 and an assessment produced by this platform is, in effect, a detailed map
-of an organization's cyber weaknesses. Sending that map to a third-party
+of an organisation's cyber weaknesses. Sending that map to a third-party
 API, however reputable, would undermine the very trust the platform is
-meant to build. Because inference stays local, no separate anonymization
+meant to build. Because inference stays local, no separate anonymisation
 gateway is required to satisfy sovereignty; the remaining data-at-rest
 handling is covered under Section~\ref{principle:secure-by-design}. The
 consequence of this principle on model selection, and the alternative it
@@ -235,18 +235,18 @@ ruled out, are developed in Section~\ref{sec:design-choices}.
 \label{principle:secure-by-design}
 
 The sensitivity of the data processed by the platform, effectively a
-structured account of an organization's crisis-management gaps, drives
+structured account of an organisation's crisis-management gaps, drives
 architectural choices beyond the local-first constraint of
 Section~\ref{principle:local-first}. Concretely, this means the database
-volume is encrypted at rest, free-text fields such as N/A justifications
+volume is encrypted at rest, free-text fields such as Not Applicable (N/A) justifications
 are never written to logs in clear text, all traffic runs over HTTPS in
 production, and every API boundary validates its input rather than
 trusting the caller. The same principle extends to the AI layer: the
 prompt sent to the local language model carries scores, best-practice
 identifiers, the rationale behind any gate or penalty applied, and
-referential text, but never an organization name, an identifier, or the
+referential text, but never an organisation name, an identifier, or the
 content of a justification field. Access control
-follows the same logic, centralized in a single module rather than
+follows the same logic, centralised in a single module rather than
 re-implemented per route, closing the kind of broken access control that
 OWASP lists as the most common web application weakness~\cite{owasp_top10_a01_2021}.
 The concrete
@@ -266,7 +266,7 @@ rather than duplicating it. This matters for two reasons. First, it
 removes an entire class of bugs where the code and the framework silently
 drift apart, for instance a question rephrased in the interface but not in
 the engine's validation. Second, it makes the framework itself an
-auditable artifact: reviewing what the platform actually measures means
+auditable artefact: reviewing what the platform actually measures means
 reading one file, not reconstructing it from scattered pieces of code. Any
 change to the framework goes through that file and its version number,
 never through a code change alone. How this loading and validation is
@@ -276,7 +276,7 @@ frontend consumes it without duplication in Chapter~\ref{chap:platform}.
 \subsection{P5: Auth schema from day one}
 \label{principle:auth-schema}
 
-The data model has included users, organizations, roles, and the
+The data model has included users, organisations, roles, and the
 corresponding foreign keys on assessments since the very first sprint,
 well before any real authentication existed. Early on, the platform ran on
 an anonymous session stub that satisfied the same interface a real
@@ -296,7 +296,7 @@ Section~\ref{sec:principles} stated the five principles as constraints.
 This section shows three of the arbitrations they produced in practice:
 for each, I state the choice actually made, why the rejected alternative
 was genuinely tempting, and which principle it would have compromised.
-Table~\ref{tab:rejected-alternatives} summarizes the three below.
+Table~\ref{tab:rejected-alternatives} summarises the three below.
 
 \subsection{Cloud LLM API rejected for data sovereignty}
 
@@ -309,7 +309,7 @@ have produced better narrative quality than what actually runs locally.
 That gap in capability is real, and Chapter~\ref{chap:platform} returns to
 it directly. It was set aside anyway because of Section~\ref{principle:local-first}:
 the NIS2 context described in Chapter~\ref{chap:context}, together with the
-sensitivity of assessment data, effectively a map of an organization's
+sensitivity of assessment data, effectively a map of an organisation's
 cyber weaknesses, rules out sending that data to a third party regardless
 of the quality gained. The choice of local inference over a cloud API was
 therefore imposed by the platform's subject matter rather than decided
@@ -330,7 +330,7 @@ The choice of the smaller model rested on the reasonable expectation that a
 7B model would be slower still on the same hardware rather than on a
 measured comparison, and \texttt{CLAUDE.md} itself defers that formal
 benchmark to a later sprint. The resulting quality loss was judged
-acceptable because the AI's task stays narrow, summarizing and enriching a
+acceptable because the AI's task stays narrow, summarising and enriching a
 fixed set of referential recommendations for a short list of weak best
 practices, rather than
 open-ended reasoning.
@@ -341,8 +341,8 @@ Frameworks such as LangChain or LlamaIndex are often the default choice
 for wiring a language model into an application: they bundle prompt
 templates, retrieval, memory, and agent loops behind a single API, and
 adopting one would have saved a little boilerplate around the call to
-Ollama. They were rejected in favor of a direct, thin HTTP client that
-posts to Ollama's own generation endpoint and normalizes every transport
+Ollama. They were rejected in favour of a direct, thin HTTP client that
+posts to Ollama's own generation endpoint and normalises every transport
 failure into a single error type. The motivation goes beyond a general
 dislike of dependencies: a framework interposes a layer of abstraction
 between the request and the response that is harder to test, harder to
@@ -350,7 +350,7 @@ reason about when something goes wrong during a live demonstration, and
 harder to explain precisely to a jury asking what the AI layer actually
 does with a prompt. Section~\ref{principle:secure-by-design} depends on
 being able to state exactly what goes into the model and what comes out of
-it, since that is what keeps the no-PII guarantee on the prompt verifiable;
+it, since that is what keeps the prompt's no personally identifiable information (PII) guarantee verifiable;
 a direct call keeps that statement true by construction, whereas a
 framework would require trusting that it adds nothing unexpected on either
 side.
@@ -363,7 +363,7 @@ call the scoring functions itself, especially once a second consumer
 needed the same translation: the recommendations endpoint requires the
 same freshly computed \texttt{Assessment\allowbreak Result} as the score
 endpoint itself, only to build a prompt from it instead of to serve it
-directly. That path was rejected in favor of a single
+directly. That path was rejected in favour of a single
 bridge module that is the only place in the codebase allowed to translate
 a stored assessment into the engine's input type and to call the engine.
 Every route that needs a score goes through that one seam. The reason is

@@ -112,12 +112,12 @@ translation from stored, raw answers to the engine's input format.
 \end{figure}
 
 The engine suite grew from 64 tests at the point of the independent audit
-(\ref{chap:scoring-engine}) to 67 after the corrections it triggered, three
+(Chapter~\ref{chap:scoring-engine}) to 67 after the corrections it triggered, three
 new tests specifically targeting a gap the audit had identified (see
-\ref{sec:validation-test-profiles}), and stands at 70 today. The backend
+Section~\ref{sec:validation-test-profiles}), and stands at 70 today. The backend
 suite, which exercised only the two endpoints required by the end of Sprint
 0, \texttt{test\_health.py} and \texttt{test\_referential\_endpoint.py}, grew
-alongside every backend feature landed afterward, assessments, scoring,
+alongside every backend feature landed afterwards, assessments, scoring,
 authentication and access control, and now counts 71 tests. A single
 \texttt{pytest} run from \texttt{backend/} collects both suites, so the
 figure that describes the platform as a whole is 141 tests, 70 for the
@@ -133,13 +133,13 @@ Because the engine is deterministic by construction (principle P1,
 Chapter~\ref{chap:method}), its tests can assert exact values rather than
 tolerance ranges. A test
 such as \texttt{test\_determinism}, which runs the same assessment through
-the engine twice and compares the two serialized outputs, would be
+the engine twice and compares the two serialised outputs, would be
 meaningless for a component with any randomness or hidden state. This is
 also why the golden scenarios described below assert precise numeric scores
 rather than approximate bounds, and why the boundary sweep test can claim
 exhaustive coverage of a parameter range rather than sampling it. This
 certainty does not extend to the AI layer, which is evaluated on different
-terms in \ref{sec:validation-ai-evaluation}.
+terms in Section~\ref{sec:validation-ai-evaluation}.
 
 \subsection{Test profiles built for coverage}
 \label{sec:validation-test-profiles}
@@ -157,13 +157,13 @@ a subtle error, ordering, thresholds, and edge conditions.
     \midrule
     \texttt{test\_\allowbreak determinism} & Same input run twice yields identical output \\
     Golden scenarios (5) & End-to-end reference cases covering the full pipeline \\
-    \texttt{test\_\allowbreak bounds\_\allowbreak across\_\allowbreak sweep} & 20 parametrized combinations, proves the final score stays in $[0, 100]$ \\
+    \texttt{test\_\allowbreak bounds\_\allowbreak across\_\allowbreak sweep} & 20 parametrised combinations, proves the final score stays in $[0, 100]$ \\
     \texttt{test\_\allowbreak evidence\_\allowbreak caps\_\allowbreak are\_\allowbreak strictly\_\allowbreak increasing} & Evidence-type caps are monotonic \\
     \texttt{test\_\allowbreak golden\_\allowbreak na\_\allowbreak is\_\allowbreak neutral} & A N/A best practice contributes to neither numerator nor denominator \\
     Loader validation tests & Missing file, malformed YAML, missing field all raise \\
     \texttt{test\_\allowbreak golden\_\allowbreak consistency\_\allowbreak penalty\_\allowbreak triggered} & A maturity gap above threshold deducts the expected points \\
     \texttt{test\_\allowbreak golden\_\allowbreak two\_\allowbreak gates\_\allowbreak strictest\_\allowbreak cap\_\allowbreak wins} & Two simultaneous foundational gates, the stricter cap is retained \\
-    \texttt{test\_\allowbreak penalty\_\allowbreak threshold\_\allowbreak is\_\allowbreak strict\_\allowbreak greater\_\allowbreak than} & A gap exactly at the threshold does not penalize, just above does \\
+    \texttt{test\_\allowbreak penalty\_\allowbreak threshold\_\allowbreak is\_\allowbreak strict\_\allowbreak greater\_\allowbreak than} & A gap exactly at the threshold does not penalise, just above does \\
     \bottomrule
   \end{tabular}
   \caption{Named test scenarios and what each one locks down}
@@ -173,7 +173,7 @@ a subtle error, ordering, thresholds, and edge conditions.
 The last three rows were added after an independent audit of the engine
 found that the consistency-penalty branch, one of the two corrective
 mechanisms that can lower an already-aggregated score, was never exercised
-by any test (finding H1, \ref{chap:scoring-engine}). This is worth dwelling on briefly. A
+by any test (finding H1, Chapter~\ref{chap:scoring-engine}). This is worth dwelling on briefly. A
 64-test suite is a good headline number, but it had a gap precisely where
 the model's own differentiating logic lived. The three tests added close
 that gap without touching a single line of production code, they capture
@@ -214,7 +214,7 @@ reporting the assessment as incomplete. Left unhandled, this would have
 surfaced as an opaque \texttt{500} response. \texttt{missing\_answers} closes
 that gap ahead of time, so the scoring endpoint can return every missing
 answer at once as a \texttt{422}, keeping genuine user errors out of the
-server-error range, as documented in \ref{chap:platform}. This is a small
+server-error range, as documented in Chapter~\ref{chap:platform}. This is a small
 illustration of a pattern that recurs through the project, a risk identified
 on paper is treated as a requirement on the next component, not as an
 afterthought once it fails in practice.
@@ -308,7 +308,7 @@ observed informally rather than through a controlled benchmark, while
 \texttt{qwen2.5:3b} keeps generation to approximately one minute, the only
 model of the candidate set with an actually measured generation time. This
 is defensible because the task given to the model is constrained rather
-than open-ended, it summarizes and enriches recommendations that the
+than open-ended, it summarises and enriches recommendations that the
 referential already supplies for a handful of weak best practices, it does
 not reason freely over the whole framework.
 
@@ -316,14 +316,14 @@ Even at roughly a minute, blocking the dashboard on generation was not
 acceptable, which is why recommendations are fetched asynchronously and
 cached in memory per assessment, the dashboard renders immediately and the
 narrative fills in once ready, fetched once and reused across navigation
-rather than regenerated on every visit (\ref{chap:platform}). The model
+rather than regenerated on every visit (Chapter~\ref{chap:platform}). The model
 choice and this caching decision address the same constraint from two
 directions, one lowers the cost of a generation, the other lowers how often a
 generation has to happen at all.
 
 The trade-off is left open rather than closed, the model is swapped through a
 single environment variable, and a controlled, timed comparison against a
-larger model remains future work (\ref{chap:impact}).
+larger model remains future work (Chapter~\ref{chap:impact}).
 
 \subsection{Failure modes and guardrails}
 \label{sec:validation-failure-modes}
@@ -333,20 +333,20 @@ reliable source of exact strings, so the AI layer is built on the assumption
 that it will occasionally get an identifier wrong rather than on the hope
 that it will not. The scoring role is fixed regardless, the model receives a
 fully computed \texttt{AssessmentResult} and produces text only, it never
-touches a score (principle P1, \ref{chap:scoring-engine}). The prompt is
+touches a score (principle P1, Chapter~\ref{chap:scoring-engine}). The prompt is
 anchored to the exact list of best-practice identifiers relevant to the
-assessment and carries no personally identifiable information, no
-organization name, no identifiers, no N/A justification text (principle P3).
+assessment and carries no PII, no organisation name, no identifiers, no
+N/A justification text (principle P3).
 
 That prompt anchoring is the first of the three guardrails introduced in
-\ref{chap:platform}. The other two sit downstream of generation, before any
-text reaches the user. First, identifier normalization corrects the shapes a
+Chapter~\ref{chap:platform}. The other two sit downstream of generation, before any
+text reaches the user. First, identifier normalisation corrects the shapes a
 small model
 tends to produce, a bare \texttt{BP4} is padded to \texttt{BP04}, but a fused
 identifier such as \texttt{BP123} is rejected outright rather than guessed
 apart into \texttt{BP01} and \texttt{BP23}, since splitting it would be
 fabricating a claim the model never actually made about either practice.
-Second, every normalized identifier is checked for existence against the
+Second, every normalised identifier is checked for existence against the
 loaded referential, an action citing a best practice that is not in the
 framework, such as a fabricated \texttt{BP18} on a referential that only
 defines sixteen, is discarded rather than shown. This combines two of the
@@ -354,7 +354,7 @@ main hallucination-mitigation strategies surveyed in
 Chapter~\ref{chap:state-of-the-art}, prompt grounding, anchoring generation
 to a fixed, explicitly provided context, and post-generation validation,
 treating the output as untrusted and checking it deterministically before
-it reaches the user. Retrieval-augmented generation proper, also surveyed
+it reaches the user. RAG proper, also surveyed
 there, is not used here, the anchor is a fixed list rather than a retrieved
 one, since the sixteen best practices are few enough to inject in full
 rather than search over.
@@ -396,13 +396,13 @@ practice rather than one being purely theoretical
 \label{sec:validation-qualitative-ai}
 
 The referential's static text is a fixed sentence per best practice,
-independent of how the organization actually answered
+independent of how the organisation actually answered
 (\texttt{fallback\_recommendation\_when\_low\_maturity},
 \texttt{referential.yaml}). The AI layer's stated responsibility is to go
 beyond that, to produce an executive synthesis in natural language, to
-prioritize the three to five actions that matter most across the weak best
+prioritise the three to five actions that matter most across the weak best
 practices found, taking foundational status and dependencies into account,
-and to contextualize each recommendation using what the user actually
+and to contextualise each recommendation using what the user actually
 answered rather than the generic text alone
 (\texttt{ai\_module\_scope.downstream\_responsibilities},
 \texttt{referential.yaml}).
@@ -423,7 +423,7 @@ three priority best practices, BP08, BP11, and BP15.
     Overall crisis-management maturity is assessed at 48.4/100, level 2,
     Defined. Focus first on the priority actions below, which target the
     weakest and most structural best practices. &
-    The organization's cyber crisis management is below par, with scores
+    The organisation's cyber crisis management is below par, with scores
     averaging at level 2, Defined. Key priorities include establishing
     clear escalation criteria for timely activation of plans, implementing
     a comprehensive training program for cyber crisis managers, and
@@ -471,13 +471,13 @@ justification sentence appended to each action, absent from the static
 version, explaining in general terms why the action matters. This is a real
 addition, but a generic one, the justification for BP08 or BP11 would read
 just as naturally attached to a different weak best practice, it is not
-visibly grounded in this organization's specific pattern of failure, three
+visibly grounded in this organisation's specific pattern of failure, three
 triggered consistency penalties on top of one marginal foundational gate
-(\ref{sec:validation-worked-example}).
+(Section~\ref{sec:validation-worked-example}).
 
 The executive summary shows a comparable trade, the AI version drops the
 precise 48.4 score present in the static text in favour of a looser
-paraphrase, "scores averaging at level 2", which is imprecise in a way the
+paraphrase, ``scores averaging at level 2'', which is imprecise in a way the
 static text is not, the final score is not a simple average, it results
 from the gate and penalty mechanism described in
 Section~\ref{sec:validation-worked-example}. No identifier was fabricated
@@ -501,7 +501,7 @@ how much weight a result from this tool should be given.
 Every score the platform produces ultimately rests on what a respondent
 chooses to answer. Nothing in the data model requires, or is able to require,
 that a declared maturity level of 3 for a given question actually reflects
-the organization's practice rather than the respondent's understanding of it,
+the organisation's practice rather than the respondent's understanding of it,
 or their incentive to present it favourably. This is not a flaw specific to
 this implementation, it is a property of self-assessment as a method, shared
 with essentially every maturity framework that does not involve an external
@@ -515,7 +515,7 @@ informed self-reporting.
 \subsection{The evidence cap mitigates declarativeness only partially}
 \label{sec:validation-evidence-cap-limitation}
 
-The evidence-type mechanism (\ref{chap:scoring-engine}) caps a declared
+The evidence-type mechanism (Chapter~\ref{chap:scoring-engine}) caps a declared
 maturity level according to the strongest evidence category the respondent
 selects, an unsupported claim cannot score above level 1, a claim backed by a
 real incident can reach level 4. This meaningfully narrows how far a purely
@@ -532,11 +532,11 @@ incentive to inflate a score, it does not remove it.
 \label{sec:validation-interrater-limitation}
 
 The scoring engine's determinism guarantees that the same answers always
-produce the same score (\ref{chap:scoring-engine}). It says nothing about
+produce the same score (Chapter~\ref{chap:scoring-engine}). It says nothing about
 whether two different, equally informed people answering on behalf of the
-same organization would give the same answers in the first place. No study
+same organisation would give the same answers in the first place. No study
 was run to check this, no assessment was completed independently by more
-than one respondent from the same organization and compared. Without that
+than one respondent from the same organisation and compared. Without that
 data, a claim that the tool measures maturity objectively, rather than
 measuring one respondent's perception of it consistently, would be
 overstated. This is a natural extension for validating the methodology
@@ -551,18 +551,18 @@ referential, both verified properties. That second guarantee is narrower
 than it first appears, it checks membership in the sixteen-best-practice
 referential as a whole, not membership in the smaller set of weak best
 practices actually sent to the model for a given assessment
-(\ref{sec:validation-failure-modes}). A real but contextually irrelevant
+(Section~\ref{sec:validation-failure-modes}). A real but contextually irrelevant
 identifier would currently pass this check undetected, a gap that stops
 short of a hallucinated global score or a fabricated best practice, but is
 narrower than the guarantee as informally described.
 
 Neither guarantee says anything about whether the generated narrative is
-actually good advice, whether the prioritization across weak best practices
-is sound, whether the contextualization beyond the static fallback text is
+actually good advice, whether the prioritisation across weak best practices
+is sound, whether the contextualisation beyond the static fallback text is
 genuinely more useful to a reader than the fallback would have been on its
 own. The single worked comparison in Section~\ref{sec:validation-qualitative-ai}
 suggests the current output leans closer to paraphrase than to genuine
-contextualization, but one example is an illustration, not a formal
+contextualisation, but one example is an illustration, not a formal
 evaluation. Evaluating that properly would require either a domain expert
 scoring a larger sample of generated recommendations against some rubric, or
 feedback from someone who used the tool in a real advisory context, neither
@@ -576,5 +576,5 @@ validate. None of them undermine the platform's core claim, that a
 deterministic, auditable score can be computed from structured self-reported
 answers, but they do bound how that score should be interpreted and by whom.
 Chapter~\ref{chap:pm} returns to several of these points from a project
-management angle, in particular what a next iteration would prioritize given
+management angle, in particular what a next iteration would prioritise given
 more time.
