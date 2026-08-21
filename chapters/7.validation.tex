@@ -280,7 +280,7 @@ behaviour rather than a computational surprise.
 \label{sec:validation-ai-evaluation}
 
 The scoring engine can be validated the way Sections~\ref{sec:validation-strategy}
-and~\ref{sec:validation-functional-results} did it, against exact expected
+and \ref{sec:validation-functional-results} did it, against exact expected
 values, because it is deterministic. The local AI layer is not, and
 evaluating it calls for different terms, the reasoning behind the model
 choice, the guardrails put in place because the model cannot be trusted
@@ -327,7 +327,7 @@ reliable source of exact strings, so the AI layer is built on the assumption
 that it will occasionally get an identifier wrong rather than on the hope
 that it will not. The scoring role is fixed regardless, the model receives a
 fully computed \texttt{AssessmentResult} and produces text only, it never
-touches a score (principle P1, Chapter~\ref{chap:scoring-engine}). The prompt is
+touches a score (principle P1, Chapter~\ref{chap:method}). The prompt is
 anchored to the exact list of best-practice identifiers relevant to the
 assessment and carries no PII, no organisation name, no identifiers, no
 N/A justification text (principle P3).

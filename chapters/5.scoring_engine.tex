@@ -203,7 +203,7 @@ has to meet:
   \item \emph{Referential-driven}: the referential stays the single source of
         truth, and the engine reads its thresholds instead of hard-coding them.
 \end{itemize}
-Sections~\ref{sec:se-pipeline} and~\ref{sec:se-architecture} show how the pipeline
+Sections~\ref{sec:se-pipeline} and \ref{sec:se-architecture} show how the pipeline
 and the code deliver each one.
 
 % -- Emplacement tableau : structure du référentiel (phases x BP x questions)
@@ -554,7 +554,7 @@ scrutiny.
 % Extrait de app/scoring/engine.py (imports et docstring omis pour la place ;
 % deux appels reformates sur deux lignes pour tenir dans la largeur de page).
 % Le style de listing est celui de la classe tnreport (rien a definir).
-\begin{lstlisting}[language=Python,caption={The top-level \texttt{score\_assessment} routine: the code reads like the ordered pipeline of Section~\ref{sec:se-pipeline}.},label={lst:se-engine}]
+\begin{lstlisting}[language=Python,caption={The top-level \texttt{score\_assessment} routine} ,label={lst:se-engine}]
 def score_assessment(
     assessment: AssessmentInput,
     referential: Referential,
