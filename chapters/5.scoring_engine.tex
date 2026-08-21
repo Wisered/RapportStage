@@ -2,8 +2,8 @@
 \label{chap:scoring-engine}
 
 The two preceding chapters established \emph{what} this project set out to
-build---a self-assessment platform for cyber crisis management maturity, grounded
-in the ENISA \emph{Best Practices for Cyber Crisis Management} framework---and the
+build, a self-assessment platform for cyber crisis management maturity, grounded
+in the ENISA \emph{Best Practices for Cyber Crisis Management} framework, and the
 methodological principles that would govern \emph{how} it was built. This chapter
 turns to the component on which everything else depends: the \emph{scoring engine},
 the deterministic core that converts a respondent's answers into a maturity score.
@@ -11,7 +11,7 @@ the deterministic core that converts a respondent's answers into a maturity scor
 The engineering problem is easy to state and deceptively hard to solve well. The
 engine's input is a \emph{self-assessment}: for each of the framework's sixteen
 best practices, a respondent declares a maturity level and points to the evidence
-that supports it. Self-assessment is, by nature, subjective and declarative---two
+that supports it. Self-assessment is, by nature, subjective and declarative, two
 properties that a scoring mechanism must actively counter rather than faithfully
 reproduce. A naive approach, a weighted average of declared maturities, would fail
 on three counts at once. It would be \textbf{opaque}: a single aggregate figure
@@ -23,13 +23,13 @@ a flattering result. And it would be \textbf{fragile}: with nine best practices 
 a plain mean would let one phase silently dominate the verdict.
 
 Two properties are therefore non-negotiable, and they organise the entire design.
-The score must be \textbf{auditable}---every point, every cap, every deduction
+The score must be \textbf{auditable}: every point, every cap, every deduction
 traceable back to a specific answer and a specific rule, so that the result can be
 defended number by number in front of a client. And it must be \textbf{resistant to
-gaming}---a claim unsupported by evidence must not be allowed to inflate the score.
+gaming}: a claim unsupported by evidence must not be allowed to inflate the score.
 From these two requirements the rest follows: rather than a single formula, the
 engine is a pipeline of deliberately ordered stages, each one the answer to a
-specific failure mode of naive scoring---evidence caps against the declarative
+specific failure mode of naive scoring: evidence caps against the declarative
 bias, foundational gates against structural weaknesses, consistency penalties
 against incoherent self-portraits, and phase normalisation against structural
 imbalance.
@@ -42,7 +42,7 @@ engine and argues why the order is itself a design decision.
 Section~\ref{sec:se-architecture} shows how that specification is translated into a
 codebase built for determinism and auditability.
 Section~\ref{sec:se-testing} describes the testing strategy and an independent
-audit that exposed---and led me to close---two genuine blind spots.
+audit that exposed, and led me to close, two genuine blind spots.
 Section~\ref{sec:se-reflection} steps back to weigh the model's limits and the
 choices I would defend or revisit.
 
@@ -208,7 +208,6 @@ deliberately simple, chosen so that one run triggers an evidence cap, a foundati
 gate and a consistency penalty, with each mechanism visible in turn.
 Table~\ref{tab:se-worked-example} gives the running value after each stage.
 
-% -- Emplacement tableau : exemple numérique déroulé de bout en bout
 \begin{table}[htbp]
   \centering
   \caption{End-to-end worked example: from raw answers to the final global score.}
@@ -240,7 +239,6 @@ is the stricter and more faithful reading. The same logic explains why the stric
 cap wins when two gates apply: the ceiling reflects the worst prerequisite failure,
 not an average of them.
 
-% -- Emplacement figure : schéma du pipeline en ordre fixe
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}[
@@ -413,7 +411,6 @@ matters in front of a jury or a client. After integration into the platform the
 suite stands at 70 tests. What it cannot settle, the choices that are defensible
 rather than provable, is the subject of the next section.
 
-% -- Emplacement tableau : synthèse des findings d'audit et corrections
 \begin{table}[htbp]
   \centering
   \caption{Audit findings and the corrective loop that followed.}

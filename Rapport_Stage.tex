@@ -48,7 +48,7 @@
 %\def\reportSecondCompanyLogoPath{figures/logo.png} % Deuxième logo d'entreprise si besoin
 
 \def\place{Thionville} % Ville pour la signature pour l'engagement anti-plagiat
-\def\date{31/08/2026} % Date pour la signature de l'engagement anti-plagiat
+\def\date{31 août 2026} % Date pour la signature de l'engagement anti-plagiat
 
 % =============================================================
 % Glossaire / liste des acronymes
@@ -103,6 +103,18 @@
 \newacronym{YAML}{YAML}{YAML Ain't Markup Language}
 \newacronym{SHA}{SHA}{Secure Hash Algorithm}
 \newacronym{IT}{IT}{information technology}
+
+% ---- Noms des parties, en anglais ----
+\addto\captionsenglish{%
+  \renewcommand{\tocbibname}{References}%
+  \renewcommand{\contentsname}{Contents}%
+  \renewcommand{\listfigurename}{List of Figures}%
+  \renewcommand{\listtablename}{List of Tables}%
+  \renewcommand{\appendixname}{Appendix}%
+  \renewcommand{\glossaryname}{List of Acronyms}%
+}
+\renewcommand{\lstlistlistingname}{Code Listings}   % pas un nom babel : renewcommand nu
+
 
 \begin{document}
 
@@ -214,7 +226,7 @@ fin d'études.
 \renewcommand{\thesubsection}{\Roman{subsection}}
 
 \appendix
-\part*{Annexes} \addcontentsline{toc}{part}{Annexes}
+\part*{Appendices} \addcontentsline{toc}{part}{Appendices}
 
 \input{chapters/A.reference_tables.tex}
 \cleardoublepage{}
@@ -260,6 +272,7 @@ mesurée.
   scoring déterministe, modèle de langage local
 
 
+\clearpage 
 \thispagestyle{empty}
 \section*{Abstract}
 \addcontentsline{toc}{chapter}{Abstract}
