@@ -51,6 +51,18 @@ The project also carried a consistent discipline of verifying a decision or a pi
 
 The method did not, however, hold to its own plan without adjustment, and that departure is worth recording honestly rather than glossing over. Sprint 0's original brief explicitly scoped the scoring endpoint and answer submission out of its definition of done, deferring them to a later sprint, while placing the frontend, the Docker Compose stack, and the accompanying Makefile inside it. What actually happened reversed that order: two sub-sprints, 0B.1 and 0B.2, delivered assessment storage with autosave and the scoring endpoint wired end to end through the engine first, while the frontend, the container stack, and the Makefile were not yet built. I chose to keep the git history's actual order in this report rather than the order originally planned, which forces an admission that the initial plan was not a good predictor of where the real risk lay. In hindsight the reprioritisation was the right call, the scoring engine's integration was the single largest technical risk in the project and it made sense to prove it worked before investing in a user interface for it, but the honest lesson is that the plan itself should have said so from the start, rather than being corrected after the fact.
 
+\subsection{Supervision and stakeholder feedback}
+\label{sec:pm-supervision}
+
+The account so far is written in the first person, which risks making the project sound more solitary than it was. The work was carried out under two forms of supervision running on different rhythms, and a few of the decisions reported in this document were settled outside my own judgement.
+
+On the industrial side, I held a point with my supervisor at Wavestone Luxembourg, introduced in Chapter~\ref{chap:framing}, every two weeks. Those meetings were built around a demonstration rather than a written status report: showing the current state of the platform actually running, followed by a short review of what had been done since the previous point and what came next. Working to a fortnightly demonstration had an effect on the work itself that is worth naming, since it meant each increment had to reach a state that could be shown end to end, which is a stricter bar than a component being finished in isolation, and it kept the definition of done described in Section~\ref{sec:pm-sprints} honest rather than nominal.
+
+On the academic side, I reported to my supervisor at TELECOM Nancy by email once a month, and presented the work in person at a mid-internship meeting held before July. That meeting had two outcomes: a review of what had been built at that point, and the validation of the outline of this report, which fixed the structure the document still follows.
+
+Not every decision recorded here was mine to make, and the clearest case is the authentication model discussed in Chapter~\ref{chap:platform}. The project brief mandated cookie-based sessions and ruled out JSON Web Tokens, so that choice was settled before I reached it. What was left to me was to examine whether the constraint held up on its own terms, which is why that section argues the case for server-side sessions on the merits instead of simply recording an instruction, and the argument is stronger for having been tested against an alternative I was not free to take. Feedback also reached the project from outside the supervision line: the two practitioners whose reactions are reported in Chapter~\ref{chap:impact} gave the only reading of the tool from people who would plausibly use it, and it is reported there rather than here because it bears on what the tool is worth rather than on how the project was run.
+
+
 \section{Risks and difficulties encountered}
 \label{sec:pm-risks}
 
