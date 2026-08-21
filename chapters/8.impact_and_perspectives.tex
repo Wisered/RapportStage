@@ -6,7 +6,7 @@ Chapter~\ref{chap:validation} showed what the platform does and does not establi
 \section{Value for the consulting practice}
 \label{sec:impact-consulting}
 
-Within the bounds Chapter~\ref{chap:validation} sets out, this section turns to what the platform is worth to the practice that commissioned it. The value described here follows three related lines: a more defensible starting point for client conversations, the time and consistency gained from a repeatable instrument, and a shared vocabulary between consultant and client.
+Within the bounds Chapter~\ref{chap:validation} sets out, this section turns to what the platform is worth to the practice that commissioned it. The value described here follows three related lines, a more defensible starting point for client conversations, the time and consistency gained from a repeatable instrument, and a shared vocabulary between consultant and client, before a fourth subsection asks what any of that is worth economically.
 
 \subsection{A defensible starting point for client conversations}
 \label{sec:impact-consulting-starting-point}
@@ -22,6 +22,15 @@ Two related benefits follow from the deterministic nature of the scoring engine 
 \label{sec:impact-consulting-shared-language}
 
 By turning the sixteen ENISA best practices into named, identifiable units, BP01 to BP16, organised into four phases and scored on a common zero-to-four maturity scale, the platform gives consultants and clients, the intended audience described in Chapter~\ref{chap:framing}, a shared vocabulary to talk about crisis management maturity. A finding expressed as ``BP08 is at maturity level 1'' is unambiguous and reproducible in a way that a purely narrative assessment is not, which in turn makes it easier for a consultant and a client's security or governance team to agree on what needs to improve and why.
+
+\subsection{An order of magnitude, stated as a line of reasoning}
+\label{sec:impact-consulting-economics}
+
+None of the value described so far has been expressed in money, and this subsection does not close that gap with a figure, because no measurement made in this work would support one. What can be set out is the chain of reasoning that connects the platform to an economic effect, together with the point at which that chain stops resting on evidence and starts resting on inference.
+
+The external end of the chain is documented. As Section~\ref{sec:crisis-landscape} reports, what a breach costs varies considerably with how quickly it is identified and contained, by more than a million dollars on average between breaches resolved within two hundred days and those that run past them. The internal end is the platform, which acts on none of that directly: it detects nothing, contains nothing, and shortens no incident. What it produces is a structured picture of how prepared an organisation is across the sixteen best practices, including the four foundational ones whose weakness caps the whole score (Chapter~\ref{chap:scoring-engine}), together with a prioritised sense of where that preparation is thinnest.
+
+Joining those two ends is an inference, and it is worth stating plainly rather than dressing it up as a result. An organisation that knows which parts of its crisis-management capability are weakest is better placed to strengthen them than one working from a general sense of exposure, and stronger capability is what the external figures associate with a less costly crisis. Every step in that chain is plausible; none of it has been tested here. No before-and-after comparison exists, no assessment has been run on an organisation that subsequently handled a real crisis, and this work is in no position to attach a percentage or an amount to the platform's effect on the cost of an incident. The economic case rests on the platform acting on a variable that external evidence links to cost. Whether it moves that variable, and by how much, is unobserved.
 
 The observations above draw on informal, internal feedback rather than on a supervised client trial: at the time of writing, the platform has not been used on an actual client engagement, and no decision, formal or informal, has been made regarding whether or how Wavestone might use it going forward. The value described here is therefore best read as an informed expectation grounded in early internal reactions from practitioners, not as a demonstrated commercial outcome.
 
@@ -63,7 +72,7 @@ The second observation concerns architecture rather than model choice. The stric
 \section{Perspectives and future work}
 \label{sec:impact-perspectives}
 
-This final section shifts from what was built to what could follow. One item below is not really a perspective at all: authentication was built during the internship and is already part of the platform, and is included here only to mark that boundary before turning to what remains open. Everything else in this section is a direction identified by the author as worth pursuing, not a commitment from Wavestone or a scheduled piece of work; none of it has an agreed timeline at the time of writing.
+This final section shifts from what was built to what could follow. One item below is not really a perspective at all: authentication was built during the internship and is already part of the platform, and is included here only to mark that boundary before turning to what remains open. The section then closes on the factual status of the deliverable itself at the end of the internship. Everything between those two is a direction identified by the author as worth pursuing, not a commitment from Wavestone or a scheduled piece of work; none of it has an agreed timeline at the time of writing.
 
 \subsection{Already in place: authentication and access control}
 \label{sec:impact-perspectives-authentication}
@@ -89,3 +98,10 @@ Each assessment result is currently computed on demand from a set of answers and
 \label{sec:impact-perspectives-hardening-testing}
 
 Two infrastructure items remain open. A Docker Compose setup was planned from the project's first sprint but never built; the backend already resolves its referential path through an overridable environment variable for exactly this purpose, but no compose file packages the three services together. A migration from SQLite to PostgreSQL is planned for the same post-MVP stage flagged in Chapter~\ref{chap:platform}; since the backend already uses an async SQLAlchemy stack, this would in principle only require changing the \texttt{DATABASE\_URL} the application points at, though this has not been attempted. Separately, the existing test suites cover the scoring engine and the backend API in isolation (Chapter~\ref{chap:scoring-engine}, Chapter~\ref{chap:platform}); no end-to-end test exercises the full assessment flow through the actual frontend, a gap that closing would give more confidence in the platform as a whole rather than in its parts individually.
+
+\subsection{Handover and status at the end of the internship}
+\label{sec:impact-perspectives-handover}
+
+Whatever becomes of the directions above, the deliverable itself has a concrete destination, and it is worth stating plainly at the close of this chapter. The work lives in a local git repository, handed over to Wavestone at the end of the internship together with the documentation written alongside it: the referential itself, the dated architecture and decision logs described in Chapter~\ref{chap:pm}, the scoring engine's audit and its changelog, and the notes covering the network setup the platform runs on.
+
+What that hands over is a documented, working codebase. Someone picking it up would find the platform and its accompanying documents in a state that explains what was built and why, with one uneven part: the scoring engine, whose foundational gates, consistency penalties and fixed pipeline order have to be read carefully in Chapter~\ref{chap:scoring-engine} and in the referential itself before the reasoning behind any given score becomes clear. The rest is straightforward to follow from the documentation as it stands. Beyond the handover, nothing is settled, and Section~\ref{sec:impact-consulting} has already recorded that no decision has been made about whether Wavestone will take the tool further. The honest description of its status at the end of the internship is therefore a complete and documented codebase in the practice's hands, available as a starting point for the directions set out above without any of them being scheduled.
