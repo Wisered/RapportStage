@@ -50,7 +50,59 @@
 \def\place{Thionville} % Ville pour la signature pour l'engagement anti-plagiat
 \def\date{\today} % Date pour la signature de l'engagement anti-plagiat
 
-% \newacronym{TEM}{TEM}{scanning electron microscope}
+% =============================================================
+% Glossaire / liste des acronymes
+% =============================================================
+
+% -- Cadre reglementaire et referentiels
+\newacronym{EU}{EU}{European Union}
+\newacronym{ENISA}{ENISA}{European Union Agency for Cybersecurity}
+\newacronym{NIS2}{NIS2}{Directive (EU) 2022/2555 on measures for a high common level of cybersecurity across the Union}
+\newacronym{CyCLONe}{CyCLONe}{EU Cyber Crisis Liaison Organisation Network}
+\newacronym{CSIRT}{CSIRT}{Computer Security Incident Response Team}
+\newacronym{ISOIEC}{ISO/IEC}{International Organization for Standardization / International Electrotechnical Commission}
+\newacronym{NIST}{NIST}{National Institute of Standards and Technology}
+\newacronym{CSF}{CSF}{Cybersecurity Framework}
+\newacronym{CMMI}{CMMI}{Capability Maturity Model Integration}
+\newacronym{ISACA}{ISACA}{Information Systems Audit and Control Association}
+\newacronym{CISA}{CISA}{Cybersecurity and Infrastructure Security Agency}
+\newacronym{FFIEC}{FFIEC}{Federal Financial Institutions Examination Council}
+\newacronym{OWASP}{OWASP}{Open Worldwide Application Security Project}
+
+% -- Vocabulaire du projet
+\newacronym{PFE}{PFE}{Projet de Fin d'\'Etudes}
+\newacronym{BP}{BP}{best practice, as numbered BP01 to BP16 in the referential}
+\newacronym{MVP}{MVP}{minimum viable product}
+\newacronym{BCP}{BCP}{Business Continuity Plan}
+\newacronym{BRP}{BRP}{Business Recovery Plan}
+\newacronym{DR}{DR}{Disaster Recovery}
+
+% -- Intelligence artificielle
+\newacronym{AI}{AI}{artificial intelligence}
+\newacronym{LLM}{LLM}{large language model}
+\newacronym{RAG}{RAG}{retrieval-augmented generation}
+\newacronym{MoE}{MoE}{mixture of experts}
+\newacronym{PII}{PII}{personally identifiable information}
+\newacronym{CPU}{CPU}{central processing unit}
+\newacronym{GPU}{GPU}{graphics processing unit}
+
+% -- Plateforme, web et systeme
+\newacronym{API}{API}{application programming interface}
+\newacronym{HTTP}{HTTP}{Hypertext Transfer Protocol}
+\newacronym{HTTPS}{HTTPS}{Hypertext Transfer Protocol Secure}
+\newacronym{URL}{URL}{uniform resource locator}
+\newacronym{JSON}{JSON}{JavaScript Object Notation}
+\newacronym{JWT}{JWT}{JSON Web Token}
+\newacronym{XSS}{XSS}{cross-site scripting}
+\newacronym{CSRF}{CSRF}{cross-site request forgery}
+\newacronym{CORS}{CORS}{cross-origin resource sharing}
+\newacronym{SQL}{SQL}{Structured Query Language}
+\newacronym{ORM}{ORM}{object-relational mapping}
+\newacronym{NAT}{NAT}{network address translation}
+\newacronym{VM}{VM}{virtual machine}
+\newacronym{YAML}{YAML}{YAML Ain't Markup Language}
+\newacronym{SHA}{SHA}{Secure Hash Algorithm}
+\newacronym{IT}{IT}{information technology}
 
 \begin{document}
 
@@ -66,30 +118,29 @@
 
 \makesecondtitle{}
 
-\section*{Remerciements}
+\chapter*{Remerciements}
 \addcontentsline{toc}{chapter}{Remerciements}
 
-{\em
-``{Night gathers, and now my watch begins. \\
-It shall not end until my death.
+Je tiens à remercier en premier lieu Riccardo Bergamaschi, mon encadrant industriel,
+pour l'autonomie qu'il m'a accordée tout au long de ce projet, sa disponibilité
+et la confiance qu'il m'a témoignée dans la conduite des choix techniques comme
+méthodologiques.
 
-I shall take no wife, hold no lands, father no children. \\ I shall wear no
-crowns and win no glory. \\ I shall live and die at my post.
+Je remercie également Jérôme de Lisle, à la tête de la practice Cyber de Wavestone
+Luxembourg, pour sa confiance et son accompagnement durant l'ensemble du stage.
 
-I am the sword in the darkness. \\ I am the watcher on the walls. \\ I am the
-shield that guards the realms of men.
+Mes remerciements vont aussi à Anna Chevalier, dont l'intérêt pour les
+exercices de gestion de crise et les retours qu'elle m'a apportés ont nourri
+utilement ce travail.
 
-I pledge my life and honor to the Night's Watch, \\ for this night and all the
-nights to come.}''\/}
+Je remercie enfin Christophe Bianco, mon tuteur académique à TELECOM Nancy, pour
+sa disponibilité, son suivi régulier et ses conseils tout au long de ce projet de
+fin d'études.
 
-\hspace{4cm} --- The Night's Watch oath
-
-\cleardoublepage{}
+\clearpage
 
 % \section*{Avant-propos (optionnel)}
 % \addcontentsline{toc}{chapter}{Avant-propos (optionnel)}
-
-\cleardoublepage{}
 
 \renewcommand{\baselinestretch}{0.5}\normalsize
 \tableofcontents
@@ -156,13 +207,14 @@ nights to come.}''\/}
 \lstlistoflistings{}
 \cleardoublepage{}
 
-\printnoidxglossaries{}
+\glsaddall
+\printglossary[nonumberlist]
 
 \cleardoublepage{}
 \renewcommand{\thesubsection}{\Roman{subsection}}
 
 \appendix
-\part*{Annexes} \addcontentsline{toc}{part}{Annexes} \cleardoublepage{}
+\part*{Annexes} \addcontentsline{toc}{part}{Annexes}
 
 \input{chapters/A.reference_tables.tex}
 \cleardoublepage{}
