@@ -107,7 +107,7 @@ Section~\ref{sec:crisis-landscape}.
 The framework organises cyber crisis management into four phases,
 Prevention, Preparedness, Response and Recovery, each covering a distinct
 moment in the life of a crisis rather than a distinct technical domain.
-Figure~\ref{fig:enisa-phases} summarises this structure as encoded in the
+Figure~\ref{fig:enisa-phases}, in Appendix~\ref{app:figures}, summarises this structure as encoded in the
 referential built for this project (its full construction is detailed in
 Chapter~\ref{chap:scoring-engine}): each phase carries an equal 25\% weight in the
 resulting maturity score, regardless of how many best practices it
@@ -116,43 +116,6 @@ BP16, are distributed unevenly across the four phases, from three in Prevention
 to nine in Preparedness, reflecting the
 fact that most of what determines crisis readiness is decided before a
 crisis starts, not during it.
-
-\begin{figure}[ht!]
-  \centering
-  \begin{tikzpicture}[
-    phase/.style={
-      draw, thick, rounded corners, minimum width=3.1cm, minimum height=1.5cm,
-      align=center, font=\sffamily\small
-    },
-    lbl/.style={font=\sffamily\scriptsize, align=center},
-    arr/.style={-{Stealth[length=2.5mm]}, thick}
-  ]
-
-  \node[phase] (prev) at (0, 3.6) {Prevention};
-  \node[phase] (prep) at (3.6, 0) {Preparedness};
-  \node[phase] (resp) at (0, -3.6) {Response};
-  \node[phase] (recv) at (-3.6, 0) {Recovery};
-
-  \node[lbl, above=1mm of prev] {25\% (3 BPs)};
-  \node[lbl, right=1mm of prep] {25\% (9 BPs)};
-  \node[lbl, below=1mm of resp] {25\% (2 BPs)};
-  \node[lbl, left=1mm of recv] {25\% (2 BPs)};
-
-  \draw[arr] (prev) to[bend left=18] (prep);
-  \draw[arr] (prep) to[bend left=18] (resp);
-  \draw[arr] (resp) to[bend left=18] (recv);
-  \draw[arr] (recv) to[bend left=18] (prev);
-
-  \node[lbl, font=\sffamily\footnotesize\itshape] at (0,0)
-    {Cyber crisis\\management cycle};
-
-  \end{tikzpicture}
-  \caption[The four phases of the ENISA cyber crisis management framework]{The four
-phases of the ENISA cyber crisis management framework, each normalised to an equal
-25\% weight in the global maturity score regardless of the number of best practices
-it contains (source: referential.yaml, derived from \cite{enisa_crisis_mgmt_2024})}
-  \label{fig:enisa-phases}
-\end{figure}
 
 \subsection{Foundational best practices}
 

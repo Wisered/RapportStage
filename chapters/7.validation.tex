@@ -27,89 +27,8 @@ The first layer tests the scoring engine in isolation, as a pure Python
 package with no I/O. The second layer tests the FastAPI backend that wraps
 it, exercising HTTP endpoints against a real (in-memory) database. The third
 layer is a targeted cross-check of the single seam between the two, the
-translation from stored, raw answers to the engine's input format.
+translation from stored, raw answers to the engine's input format.  Table~\ref{tab:validation-testing-layers} and Figure~\ref{fig:validation-pipeline}, both in Appendix~\ref{app:tables} and Appendix~\ref{app:figures} respectively, give the scope and the location of each layer.
 
-\begin{table}[htbp]
-  \centering
-  \begin{tabular}{@{}p{3.4cm}p{6.1cm}p{4.6cm}@{}}
-    \toprule
-    Layer & Scope & Location \\
-    \midrule
-    Engine unit tests & Pure scoring pipeline, no I/O &
-    \texttt{app/\allowbreak scoring/\allowbreak tests/} \\
-    Backend integration tests & FastAPI endpoints, async DB &
-    \texttt{backend/\allowbreak tests/} \\
-    End-to-end bridge cross-check & DB row to \texttt{AssessmentInput} to
-    result & \texttt{score\_test.py} \\
-    \bottomrule
-  \end{tabular}
-  \caption{The three testing layers}
-  \label{tab:validation-testing-layers}
-\end{table}
-
-\begin{figure}[htbp]
-  \centering
-  \begin{tikzpicture}[
-      >=Latex,
-      node distance=4mm,
-      proc/.style={
-        draw=black!65, thick, rounded corners=2pt, fill=black!4,
-        minimum height=1.0cm, text width=1.9cm, align=center,
-        font=\footnotesize
-      },
-      data/.style={
-        draw=black!55, thick, dashed, rounded corners=2pt, fill=white,
-        minimum height=1.0cm, text width=1.9cm, align=center,
-        font=\footnotesize\itshape
-      },
-      band/.style={
-        draw, rounded corners=2pt, thick, minimum height=0.85cm,
-        font=\scriptsize, align=center, inner sep=4pt
-      },
-      guide/.style={draw=black!35, dashed, line width=0.5pt},
-      marker/.style={coordinate}
-    ]
-
-    \node[proc]                          (n1) {HTTP\\request};
-    \node[proc, right=of n1]             (n2) {FastAPI\\endpoint + DB};
-    \node[proc, right=of n2]             (n3) {scoring\_\\bridge.py};
-    \node[data, right=of n3]             (n4) {Assessment\\Input};
-    \node[proc, right=of n4]             (n5) {Engine\\(Ch.~5)};
-    \node[data, right=of n5]             (n6) {Assessment\\Result};
-    \node[proc, right=of n6]             (n7) {HTTP\\response};
-
-    \draw[->] (n1) -- (n2);
-    \draw[->] (n2) -- (n3);
-    \draw[->] (n3) -- (n4);
-    \draw[->] (n4) -- (n5);
-    \draw[->] (n5) -- (n6);
-    \draw[->] (n6) -- (n7);
-
-    \node[marker] (m4)  [yshift=-1.325cm] at (n4.west) {};
-    \node[marker] (m6)  [yshift=-1.325cm] at (n6.east) {};
-    \node[marker] (m2)  [yshift=-2.425cm] at (n2.west) {};
-    \node[marker] (m4b) [yshift=-2.425cm] at (n4.east) {};
-    \node[marker] (m1)  [yshift=-3.525cm] at (n1.west) {};
-    \node[marker] (m7)  [yshift=-3.525cm] at (n7.east) {};
-
-    \draw[guide] (n4.south west) -- (m4);
-    \draw[guide] (n6.south east) -- (m6);
-    \draw[guide] (n2.south west) -- (m2);
-    \draw[guide] (n4.south east) -- (m4b);
-    \draw[guide] (n1.south west) -- (m1);
-    \draw[guide] (n7.south east) -- (m7);
-
-    \node[band, fit=(m4)(m6), draw=blue!55!black, fill=blue!8, text=blue!55!black]
-      {Engine unit tests};
-    \node[band, fit=(m2)(m4b), draw=teal!60!black, fill=teal!8, text=teal!60!black]
-      {End-to-end bridge\\cross-check};
-    \node[band, fit=(m1)(m7), draw=black!55, fill=black!5, text=black!55]
-      {Backend integration tests};
-
-  \end{tikzpicture}
-  \caption{Overview of the validation pipeline}
-  \label{fig:validation-pipeline}
-\end{figure}
 
 The engine suite grew from 64 tests at the point of the independent audit
 (Chapter~\ref{chap:scoring-engine}) to 67 after the corrections it triggered, three
@@ -147,28 +66,9 @@ terms in Section~\ref{sec:validation-ai-evaluation}.
 Beyond the determinism check, the engine suite is organised around a small
 number of named scenarios chosen to exercise specific parts of the scoring
 pipeline described in Chapter~\ref{chap:scoring-engine}, particularly the parts most likely to hide
-a subtle error, ordering, thresholds, and edge conditions.
+a subtle error, ordering, thresholds, and edge conditions.  Table~\ref{tab:validation-test-profiles} in Appendix~\ref{app:tables} lists them one by one, with what each locks down.
 
-\begin{table}[htbp]
-  \centering
-  \begin{tabular}{@{}p{5.6cm}p{9.4cm}@{}}
-    \toprule
-    Test & Purpose \\
-    \midrule
-    \texttt{test\_\allowbreak determinism} & Same input run twice yields identical output \\
-    Golden scenarios (5) & End-to-end reference cases covering the full pipeline \\
-    \texttt{test\_\allowbreak bounds\_\allowbreak across\_\allowbreak sweep} & 20 parametrised combinations, proves the final score stays in $[0, 100]$ \\
-    \texttt{test\_\allowbreak evidence\_\allowbreak caps\_\allowbreak are\_\allowbreak strictly\_\allowbreak increasing} & Evidence-type caps are monotonic \\
-    \texttt{test\_\allowbreak golden\_\allowbreak na\_\allowbreak is\_\allowbreak neutral} & A N/A best practice contributes to neither numerator nor denominator \\
-    Loader validation tests & Missing file, malformed YAML, missing field all raise \\
-    \texttt{test\_\allowbreak golden\_\allowbreak consistency\_\allowbreak penalty\_\allowbreak triggered} & A maturity gap above threshold deducts the expected points \\
-    \texttt{test\_\allowbreak golden\_\allowbreak two\_\allowbreak gates\_\allowbreak strictest\_\allowbreak cap\_\allowbreak wins} & Two simultaneous foundational gates, the stricter cap is retained \\
-    \texttt{test\_\allowbreak penalty\_\allowbreak threshold\_\allowbreak is\_\allowbreak strict\_\allowbreak greater\_\allowbreak than} & A gap exactly at the threshold does not penalise, just above does \\
-    \bottomrule
-  \end{tabular}
-  \caption{Named test scenarios and what each one locks down}
-  \label{tab:validation-test-profiles}
-\end{table}
+
 
 The last three rows were added after an independent audit of the engine
 found that the consistency-penalty branch, one of the two corrective
@@ -398,60 +298,12 @@ answered rather than the generic text alone
 (\texttt{ai\_module\_scope.downstream\_responsibilities},
 \texttt{referential.yaml}).
 
-Table~\ref{tab:validation-recommendation-comparison} compares both outputs
+Table~\ref{tab:validation-recommendation-comparison}, in Appendix~\ref{app:tables}, compares both outputs
 on the same \texttt{penalized} profile discussed throughout this chapter,
 static referential text against the AI-generated narrative for the same
 three priority best practices, BP08, BP11, and BP15.
 
-\begin{table}[htbp]
-  \centering
-  \small
-  \begin{tabular}{@{}p{1.6cm}p{6.85cm}p{6.85cm}@{}}
-    \toprule
-    Field & Static (referential fallback) & AI-generated (\texttt{qwen2.5:3b}) \\
-    \midrule
-    Executive summary &
-    Overall crisis-management maturity is assessed at 48.4/100, level 2,
-    Defined. Focus first on the priority actions below, which target the
-    weakest and most structural best practices. &
-    The organisation's cyber crisis management is below par, with scores
-    averaging at level 2, Defined. Key priorities include establishing
-    clear escalation criteria for timely activation of plans, implementing
-    a comprehensive training program for cyber crisis managers, and
-    developing robust Business Resumption Plans. \\
-    \addlinespace
-    BP08 &
-    Define operational escalation criteria, severity, scope, time
-    pressure, translate into decisions, who, when, how, and test in
-    exercises. Foundational best practice, score 0.0/100. &
-    Define operational escalation criteria including severity, scope, and
-    time pressure, and test in exercises. Timely activation is crucial to
-    effective response, establishing clear guidelines will improve
-    readiness. \\
-    \addlinespace
-    BP11 &
-    Implement a training curriculum for cyber crisis roles, including
-    onboarding, regular sessions, and effectiveness measurement. Score
-    0.0/100. &
-    Implement a training curriculum for cyber crisis roles with regular
-    sessions and effectiveness measurement. Continuous training ensures
-    staff are prepared, aligning responsibilities with escalation
-    criteria. \\
-    \addlinespace
-    BP15 &
-    Develop an integrated BRP with BCP/DR, regular review, recovery tests,
-    and stakeholder involvement beyond IT. Score 0.0/100. &
-    Develop an integrated Business Resumption Plan aligned with the
-    Business Continuity Plan and Disaster Recovery Plan, including regular
-    reviews and stakeholder involvement beyond IT. Resilience planning is
-    critical for recovery, a comprehensive BRP ensures a coordinated
-    approach to business continuity. \\
-    \bottomrule
-  \end{tabular}
-  \caption{Static referential text against AI-generated narrative, same
-  profile, same three best practices}
-  \label{tab:validation-recommendation-comparison}
-\end{table}
+
 
 The comparison is more modest than the stated ambition. For all three
 actions, the AI output is close to a paraphrase of the static text rather

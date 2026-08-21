@@ -1,0 +1,276 @@
+\chapter{Reference Tables}
+\label{app:tables}
+
+This appendix collects the reference tables cited throughout the report: the working rules
+fixed at the outset (Tables~\ref{tab:anti-patterns} and~\ref{tab:principles-summary}), the
+structure and scoring bands of the referential (Tables~\ref{tab:se-referential}
+and~\ref{tab:se-levels}), the platform's API surface, security measures, model candidates and
+network wiring (Tables~\ref{tab:backend-api-endpoints} to~\ref{tab:network-links}), and the
+testing inventory (Tables~\ref{tab:validation-testing-layers}
+to~\ref{tab:validation-recommendation-comparison}).
+
+% ---- coller ici tab. 4.1, puis tab. 4.2, puis tab. 5.1 ----
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}cp{0.82\textwidth}@{}}
+    \toprule
+    \# & Anti-pattern \\
+    \midrule
+    1 & Reimplementing the scoring engine, its loader, or the backend layers instead of extending them. \\
+    2 & Introducing LangChain, LlamaIndex, or any AI framework on top of Ollama. \\
+    3 & Letting the AI compute or modify a score. \\
+    4 & Hardcoding referential text in Python or TypeScript instead of loading it. \\
+    5 & Reintroducing anonymous access or bypassing the centralised auth layer. \\
+    6 & Splitting the stack into microservices. \\
+    7 & Relying on implicit SQLAlchemy lazy loading where it can hide N+1 queries. \\
+    8 & Committing \texttt{.env} files or other secrets. \\
+    9 & Writing a frontend component longer than 200 lines. \\
+    10 & Reordering the scoring pipeline, or changing the referential's structure, without bumping its version. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Anti-patterns to avoid, as fixed in \texttt{CLAUDE.md}}
+  \label{tab:anti-patterns}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}p{0.32\textwidth}p{0.58\textwidth}@{}}
+    \toprule
+    Principle & Rationale \\
+    \midrule
+    P1 -- Deterministic scoring & The engine alone computes the score; the AI never touches it, so the result is always reproducible and auditable. \\
+    P2 -- Local-first & All language model inference runs on a local Ollama instance; no assessment data ever reaches an external API. \\
+    P3 -- Secure by design & Data sensitivity drives the architecture, from encryption at rest to input validation and a single access-control module. \\
+    P4 -- Single source of truth & \texttt{referential.\allowbreak yaml} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
+    P5 -- Auth schema from day one & The data model carries users, organisations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
+    \bottomrule
+  \end{tabular}
+  \caption{The five inviolable principles}
+  \label{tab:principles-summary}
+\end{table}
+
+% -- Emplacement tableau : structure du référentiel (phases x BP x questions)
+\begin{table}[htbp]
+  \centering
+  \caption{Structure of the referential (v1.1.0): phases, best practices and questions.}
+  \label{tab:se-referential}
+  \begin{tabular}{llcc}
+    \toprule
+    Phase & \# Best practices & \# Questions & Phase weight \\
+    \midrule
+    Prevention   & 3  & 9  & 25\,\% \\
+    Preparedness & 9  & 27 & 25\,\% \\
+    Response     & 2  & 6  & 25\,\% \\
+    Recovery     & 2  & 6  & 25\,\% \\
+    \midrule
+    Total        & 16 & 48 & 100\,\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\clearpage
+
+% ---- coller ici tab. 5.2, puis tab. 6.1, puis tab. 6.2 ----
+
+% -- Emplacement tableau : bandes de score -> niveau de maturite global
+\begin{table}[htbp]
+  \centering
+  \caption{Mapping from the final global score to the global maturity level.}
+  \label{tab:se-levels}
+  \begin{tabular}{@{}ccl@{}}
+    \toprule
+    Global score & Level & Label \\
+    \midrule
+    0--20   & 0 & \emph{Not in place} \\
+    21--40  & 1 & \emph{Ad hoc} \\
+    41--60  & 2 & \emph{Defined} \\
+    61--80  & 3 & \emph{Implemented} \\
+    81--100 & 4 & \emph{Optimized} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{1.3cm}p{5.6cm}p{2.1cm}p{4.0cm}@{}}
+    \toprule
+    Method & Path & Access & Purpose \\
+    \midrule
+    GET & \texttt{/\allowbreak api/\allowbreak health} & public & Liveness, referential version \\
+    GET & \texttt{/\allowbreak api/\allowbreak referential} & public & Full referential as JSON \\
+    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak invitations} & session + hierarchy & Issue a single-use invitation \\
+    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak accept} & public (token) & Activate an account, choose a password \\
+    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak login} & public & Password login \\
+    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak logout} & session & Destroy the session \\
+    GET & \texttt{/\allowbreak api/\allowbreak me} & session & Current authenticated user \\
+    POST & \texttt{/\allowbreak api/\allowbreak assessments} & session & Create a blank assessment owned by the caller \\
+    GET & \texttt{/\allowbreak api/\allowbreak assessments} & session (scoped) & List assessments visible to the caller \\
+    GET & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}} & READ & Full editable working state \\
+    PUT & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak answers/\allowbreak \{qid\}} & WRITE & Idempotent autosave of one answer \\
+    PUT & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak annotations/\allowbreak \{bp\_\allowbreak id\}} & WRITE & Idempotent autosave of one N/A annotation \\
+    POST & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak score} & READ & Run the engine, return \texttt{Assessment\allowbreak Result} \\
+    POST & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak recommendations} & READ & Narrative recommendations (AI or fallback) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Main API endpoints}
+  \label{tab:backend-api-endpoints}
+\end{table}
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{3.6cm}p{4.4cm}p{4.6cm}@{}}
+    \toprule
+    Measure & Where & Risk mitigated \\
+    \midrule
+    bcrypt hashing (salted, adaptive cost, direct call) & \texttt{security.\allowbreak hash\_\allowbreak password} & Offline password cracking after a DB breach \\
+    Password policy (length, byte cap, blocklist, diversity) & \texttt{security.\allowbreak validate\_\allowbreak password\_\allowbreak policy} & Weak/guessable credentials; bcrypt's silent truncation \\
+    Plaintext never stored & \texttt{User.\allowbreak password\_\allowbreak hash} & Credential disclosure on data-at-rest leak (P3) \\
+    256-bit tokens, stored only as SHA-256 & \texttt{security.\allowbreak generate\_\allowbreak token} & Token guessing; theft via DB read \\
+    Single-use, expiring invitations & \texttt{Invitation} & Link replay; long-lived leaked links \\
+    Anti-enumeration (dummy verify, generic 401) & \texttt{authenticate} & Account enumeration via timing/response \\
+    Brute-force lockout & \texttt{User.\allowbreak failed\_\allowbreak login\_\allowbreak count} & Password brute-forcing / spraying \\
+    Server-side sessions, revoked on logout & \texttt{Session} & Session persistence after logout \\
+    HttpOnly / SameSite=Lax / Secure cookie & \texttt{deps.\allowbreak set\_\allowbreak session\_\allowbreak cookie} & XSS token theft, CSRF, sniffing over HTTP \\
+    Centralised access control & \texttt{authz.\allowbreak py} & OWASP A01, Broken Access Control; insecure direct object references \\
+    Invitation role hierarchy, no self-elevation & \texttt{authz.\allowbreak can\_\allowbreak invite\_\allowbreak role} & Privilege escalation via invitations \\
+    Listing scoped in SQL & \texttt{crud.\allowbreak list\_\allowbreak visible\_\allowbreak assessments} & Cross-tenant exposure / paging past scope \\
+    Uniform 404 policy & \texttt{authz} dependencies & Resource-existence disclosure \\
+    No PII to the LLM, N/A never logged & \texttt{app/\allowbreak llm/\allowbreak recommendations.\allowbreak py} & Sensitive-data leakage to AI layer / logs \\
+    \bottomrule
+  \end{tabular}
+  \caption{Security measures and the risks they mitigate}
+  \label{tab:auth-owasp-measures}
+\end{table}
+
+\clearpage
+
+% ---- coller ici tab. 6.3, puis tab. 6.4, puis tab. 7.1 ----
+
+
+\begin{table}[ht!]
+  \centering
+  \small
+  \begin{tabular}{@{}llp{3.1cm}p{3.6cm}@{}}
+    \toprule
+    Model & Size & Approx. generation time (CPU, in VM) & Status \\
+    \midrule
+    \texttt{qwen2.\allowbreak 5:\allowbreak 3b} & 3B & about 1 minute & Deployed (default) \\
+    \texttt{mistral:\allowbreak 7b-\allowbreak instruct} & 7B & not run & Candidate \\
+    \texttt{mixtral:\allowbreak 8x7b} & 8x7B (MoE) & not run & Candidate \\
+    \texttt{llama3.\allowbreak 1:\allowbreak 8b} & 8B & not run & Candidate \\
+    \texttt{qwen2.\allowbreak 5:\allowbreak 7b} & 7B & several minutes & Candidate, rejected on latency \\
+    \bottomrule
+  \end{tabular}
+  \caption{The deployed model and the four candidates listed in the referential}
+  \label{tab:ai-model-comparison}
+\end{table}
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{@{}p{3.4cm}p{3.0cm}p{3.2cm}p{4.2cm}@{}}
+    \toprule
+    Link & Setting & Where & Default \\
+    \midrule
+    Frontend $\rightarrow$ backend & \texttt{NEXT\_\allowbreak PUBLIC\_\allowbreak API\_\allowbreak URL} & \texttt{frontend/\allowbreak .\allowbreak env.\allowbreak local} & \texttt{http:\allowbreak /\allowbreak /\allowbreak localhost:\allowbreak 8000} \\
+    Frontend proxy $\rightarrow$ backend & \texttt{BACKEND\_ORIGIN} & \texttt{frontend/next.config.mjs} & \texttt{http://localhost:8000} \\
+    Backend allows frontend origin (CORS) & \texttt{cors\_\allowbreak origins} & \texttt{backend/\allowbreak app/\allowbreak config.\allowbreak py} & includes \texttt{localhost:\allowbreak 3000}, \texttt{127.\allowbreak 0.\allowbreak 0.\allowbreak 1:\allowbreak 3000} \\
+    Backend $\rightarrow$ Ollama & \texttt{OLLAMA\_\allowbreak BASE\_\allowbreak URL} & env / \texttt{backend/\allowbreak app/\allowbreak config.\allowbreak py} & \texttt{http:\allowbreak /\allowbreak /\allowbreak 127.\allowbreak 0.\allowbreak 0.\allowbreak 1:\allowbreak 11434} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Network links between frontend, backend and Ollama}
+  \label{tab:network-links}
+\end{table}
+
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}p{3.4cm}p{6.1cm}p{4.6cm}@{}}
+    \toprule
+    Layer & Scope & Location \\
+    \midrule
+    Engine unit tests & Pure scoring pipeline, no I/O &
+    \texttt{app/\allowbreak scoring/\allowbreak tests/} \\
+    Backend integration tests & FastAPI endpoints, async DB &
+    \texttt{backend/\allowbreak tests/} \\
+    End-to-end bridge cross-check & DB row to \texttt{AssessmentInput} to
+    result & \texttt{score\_test.py} \\
+    \bottomrule
+  \end{tabular}
+  \caption{The three testing layers}
+  \label{tab:validation-testing-layers}
+\end{table}
+
+\clearpage
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{@{}p{5.6cm}p{9.4cm}@{}}
+    \toprule
+    Test & Purpose \\
+    \midrule
+    \texttt{test\_\allowbreak determinism} & Same input run twice yields identical output \\
+    Golden scenarios (5) & End-to-end reference cases covering the full pipeline \\
+    \texttt{test\_\allowbreak bounds\_\allowbreak across\_\allowbreak sweep} & 20 parametrised combinations, proves the final score stays in $[0, 100]$ \\
+    \texttt{test\_\allowbreak evidence\_\allowbreak caps\_\allowbreak are\_\allowbreak strictly\_\allowbreak increasing} & Evidence-type caps are monotonic \\
+    \texttt{test\_\allowbreak golden\_\allowbreak na\_\allowbreak is\_\allowbreak neutral} & A N/A best practice contributes to neither numerator nor denominator \\
+    Loader validation tests & Missing file, malformed YAML, missing field all raise \\
+    \texttt{test\_\allowbreak golden\_\allowbreak consistency\_\allowbreak penalty\_\allowbreak triggered} & A maturity gap above threshold deducts the expected points \\
+    \texttt{test\_\allowbreak golden\_\allowbreak two\_\allowbreak gates\_\allowbreak strictest\_\allowbreak cap\_\allowbreak wins} & Two simultaneous foundational gates, the stricter cap is retained \\
+    \texttt{test\_\allowbreak penalty\_\allowbreak threshold\_\allowbreak is\_\allowbreak strict\_\allowbreak greater\_\allowbreak than} & A gap exactly at the threshold does not penalise, just above does \\
+    \bottomrule
+  \end{tabular}
+  \caption{Named test scenarios and what each one locks down}
+  \label{tab:validation-test-profiles}
+\end{table}
+
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \begin{tabular}{@{}p{1.6cm}p{6.85cm}p{6.85cm}@{}}
+    \toprule
+    Field & Static (referential fallback) & AI-generated (\texttt{qwen2.5:3b}) \\
+    \midrule
+    Executive summary &
+    Overall crisis-management maturity is assessed at 48.4/100, level 2,
+    Defined. Focus first on the priority actions below, which target the
+    weakest and most structural best practices. &
+    The organisation's cyber crisis management is below par, with scores
+    averaging at level 2, Defined. Key priorities include establishing
+    clear escalation criteria for timely activation of plans, implementing
+    a comprehensive training program for cyber crisis managers, and
+    developing robust Business Resumption Plans. \\
+    \addlinespace
+    BP08 &
+    Define operational escalation criteria, severity, scope, time
+    pressure, translate into decisions, who, when, how, and test in
+    exercises. Foundational best practice, score 0.0/100. &
+    Define operational escalation criteria including severity, scope, and
+    time pressure, and test in exercises. Timely activation is crucial to
+    effective response, establishing clear guidelines will improve
+    readiness. \\
+    \addlinespace
+    BP11 &
+    Implement a training curriculum for cyber crisis roles, including
+    onboarding, regular sessions, and effectiveness measurement. Score
+    0.0/100. &
+    Implement a training curriculum for cyber crisis roles with regular
+    sessions and effectiveness measurement. Continuous training ensures
+    staff are prepared, aligning responsibilities with escalation
+    criteria. \\
+    \addlinespace
+    BP15 &
+    Develop an integrated BRP with BCP/DR, regular review, recovery tests,
+    and stakeholder involvement beyond IT. Score 0.0/100. &
+    Develop an integrated Business Resumption Plan aligned with the
+    Business Continuity Plan and Disaster Recovery Plan, including regular
+    reviews and stakeholder involvement beyond IT. Resilience planning is
+    critical for recovery, a comprehensive BRP ensures a coordinated
+    approach to business continuity. \\
+    \bottomrule
+  \end{tabular}
+  \caption{Static referential text against AI-generated narrative, same
+  profile, same three best practices}
+  \label{tab:validation-recommendation-comparison}
+\end{table}

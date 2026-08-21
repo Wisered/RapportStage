@@ -56,7 +56,7 @@ the whole project: it states the five inviolable principles discussed in
 Section~\ref{sec:principles}, the working method itself, down to the rule
 that an ambiguous sprint brief should be clarified before coding rather
 than settled by guessing, and a numbered list of anti-patterns to avoid,
-reproduced in Table~\ref{tab:anti-patterns} so that later chapters can
+reproduced in Table~\ref{tab:anti-patterns} (Appendix~\ref{app:tables}) so that later chapters can
 refer to them by number instead of restating them.
 \texttt{ARCHITECTURE.\allowbreak md} is an append-only, dated log of the
 architectural decisions taken sprint after sprint, each entry recording
@@ -64,28 +64,6 @@ both the decision and its justification. Both documents were written as
 the decisions were being made, which is why most of the justifications
 given in Section~\ref{sec:design-choices} are drawn directly from that log
 rather than reconstructed from memory for this report.
-
-\begin{table}[htbp]
-  \centering
-  \begin{tabular}{@{}cp{0.82\textwidth}@{}}
-    \toprule
-    \# & Anti-pattern \\
-    \midrule
-    1 & Reimplementing the scoring engine, its loader, or the backend layers instead of extending them. \\
-    2 & Introducing LangChain, LlamaIndex, or any AI framework on top of Ollama. \\
-    3 & Letting the AI compute or modify a score. \\
-    4 & Hardcoding referential text in Python or TypeScript instead of loading it. \\
-    5 & Reintroducing anonymous access or bypassing the centralised auth layer. \\
-    6 & Splitting the stack into microservices. \\
-    7 & Relying on implicit SQLAlchemy lazy loading where it can hide N+1 queries. \\
-    8 & Committing \texttt{.env} files or other secrets. \\
-    9 & Writing a frontend component longer than 200 lines. \\
-    10 & Reordering the scoring pipeline, or changing the referential's structure, without bumping its version. \\
-    \bottomrule
-  \end{tabular}
-  \caption{Anti-patterns to avoid, as fixed in \texttt{CLAUDE.md}}
-  \label{tab:anti-patterns}
-\end{table}
 
 Development followed a test-driven approach wherever the scoring logic was
 involved. The engine carries seventy tests, including golden scenarios
@@ -177,26 +155,9 @@ to influence it.
 
 The five principles listed in this section were fixed at the start of the
 project, stated together in a single reference document, and never
-revisited afterward. Table~\ref{tab:principles-summary} summarises them;
+revisited afterward. Table~\ref{tab:principles-summary}, in Appendix~\ref{app:tables}, summarises them;
 each is then justified in turn, together with a note on where it is
 enforced and where its consequences are detailed further in this report.
-
-\begin{table}[htbp]
-  \centering
-  \begin{tabular}{@{}p{0.32\textwidth}p{0.58\textwidth}@{}}
-    \toprule
-    Principle & Rationale \\
-    \midrule
-    P1 -- Deterministic scoring & The engine alone computes the score; the AI never touches it, so the result is always reproducible and auditable. \\
-    P2 -- Local-first & All language model inference runs on a local Ollama instance; no assessment data ever reaches an external API. \\
-    P3 -- Secure by design & Data sensitivity drives the architecture, from encryption at rest to input validation and a single access-control module. \\
-    P4 -- Single source of truth & \texttt{referential.\allowbreak yaml} is the only specification of the framework; no code ever hardcodes a question, a weight, or a rule. \\
-    P5 -- Auth schema from day one & The data model carries users, organisations, and roles from the first sprint, so real authentication later replaces a stub without a refactor. \\
-    \bottomrule
-  \end{tabular}
-  \caption{The five inviolable principles}
-  \label{tab:principles-summary}
-\end{table}
 
 \subsection{P1: Determinism}
 \label{principle:determinism}

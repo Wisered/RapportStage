@@ -8,45 +8,9 @@ This chapter explains how the scoring engine presented in Chapter~\ref{chap:scor
 \section{Overall architecture}
 \label{sec:platform-architecture}
 
-The platform is organised in four layers, shown in Figure~\ref{fig:platform-architecture-layers}. The frontend (Section~\ref{sec:platform-frontend}) is a Next.js client that renders the questionnaire and the results dashboard and never enforces access on its own. The backend API (Section~\ref{sec:platform-backend}) is a FastAPI application that exposes the HTTP surface, applies authentication and authorisation before any handler runs, and persists raw user input in SQLite. Between the API and the engine sits a single translation module, \texttt{scoring\_\allowbreak bridge.\allowbreak py}, described below. Downstream of the engine, a local AI layer (Section~\ref{sec:platform-local-ai}) reads the computed result and produces a narrative, without ever touching the score itself.
+The platform is organised in four layers, shown in Figure~\ref{fig:platform-architecture-layers} (Appendix~\ref{app:figures}). The frontend (Section~\ref{sec:platform-frontend}) is a Next.js client that renders the questionnaire and the results dashboard and never enforces access on its own. The backend API (Section~\ref{sec:platform-backend}) is a FastAPI application that exposes the HTTP surface, applies authentication and authorisation before any handler runs, and persists raw user input in SQLite. Between the API and the engine sits a single translation module, \texttt{scoring\_\allowbreak bridge.\allowbreak py}, described below. Downstream of the engine, a local AI layer (Section~\ref{sec:platform-local-ai}) reads the computed result and produces a narrative, without ever touching the score itself.
 
 This separation is not incidental. It extends to the rest of the application the same discipline that governs the engine's own design, and it rests on principle P4 (Chapter~\ref{chap:method}): the referential in \texttt{referential.\allowbreak yaml} is the single source of truth for the business rules, never duplicated in the database schema or in the frontend code.
-
-\begin{figure}[ht!]
-  \centering
-  \begin{tikzpicture}[
-    box/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=1.1cm, font=\small},
-    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
-    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
-    node distance=15mm and 28mm
-  ]
-
-  \node[box] (browser) {Browser};
-  \node[box, below=of browser] (frontend) {Frontend\\Next.js 14 (App Router)};
-  \node[box, below=of frontend] (backend) {Backend API\\FastAPI};
-  \node[box, right=of backend] (db) {SQLite\\(SQLAlchemy async + Alembic)};
-  \node[box, below=of backend] (bridge) {scoring\_bridge.py\\(translation seam)};
-  \node[box, below=of bridge] (engine) {Scoring engine\\(frozen, Ch.~5)};
-  \node[box, right=of bridge] (ai) {Local AI layer\\(Ollama)};
-
-  \draw[arr] (browser) -- (frontend);
-  \draw[arr] (frontend) -- (backend)
-    node[lbl, midway, right=2mm] {HTTP/JSON,\\session cookie};
-  \draw[arr] (backend) -- (db)
-    node[lbl, midway, above=2mm] {raw answers,\\BP annotations};
-  \draw[arr] (backend) -- (bridge)
-    node[lbl, midway, left=2mm] {stored\\Assessment};
-  \draw[arr] ([xshift=-6mm]bridge.south) -- ([xshift=-6mm]engine.north)
-    node[lbl, midway, left=2mm] {AssessmentInput};
-  \draw[arr] ([xshift=6mm]engine.north) -- ([xshift=6mm]bridge.south)
-    node[lbl, midway, right=2mm] {AssessmentResult};
-  \draw[arr, dashed] (bridge) -- (ai)
-    node[lbl, midway, above=2mm] {AssessmentResult,\\referential (read only)};
-
-  \end{tikzpicture}
-  \caption{Layered architecture of the platform, from the browser to the scoring engine and the local AI layer}
-  \label{fig:platform-architecture-layers}
-\end{figure}
 
 \subsection{Why the DB layer and the engine layer stay separate}
 
@@ -74,33 +38,7 @@ The \texttt{User.\allowbreak role} field started, at this stage of the project, 
 
 \subsection{The score is computed on the fly, never stored}
 
-\texttt{POST /\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak score} runs the engine and returns the serialised \texttt{Assessment\allowbreak Result}, but it never writes it back to the database, and it leaves the assessment's status untouched. I considered caching the result for performance, since recomputation is not free. A stored score can drift from its own inputs the moment an answer is edited or the referential is bumped to a new version, though, and a drifted score is exactly what the engine's determinism guarantee (P1, Chapter~\ref{chap:method}) exists to prevent. The result stays fully reproducible from the raw inputs plus the referential version, so recomputing it on every request is the only option that cannot go stale; a cache, if one is ever needed, would have to sit on top of that recomputation, never replace it. The same endpoint keeps user errors out of the \texttt{5xx} range: an incomplete questionnaire or an engine validation failure (\texttt{NAValidation\allowbreak Error}) is surfaced as a \texttt{422}, not a server error.
-
-\begin{table}[ht!]
-  \centering
-  \begin{tabular}{@{}p{1.3cm}p{5.6cm}p{2.1cm}p{4.0cm}@{}}
-    \toprule
-    Method & Path & Access & Purpose \\
-    \midrule
-    GET & \texttt{/\allowbreak api/\allowbreak health} & public & Liveness, referential version \\
-    GET & \texttt{/\allowbreak api/\allowbreak referential} & public & Full referential as JSON \\
-    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak invitations} & session + hierarchy & Issue a single-use invitation \\
-    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak accept} & public (token) & Activate an account, choose a password \\
-    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak login} & public & Password login \\
-    POST & \texttt{/\allowbreak api/\allowbreak auth/\allowbreak logout} & session & Destroy the session \\
-    GET & \texttt{/\allowbreak api/\allowbreak me} & session & Current authenticated user \\
-    POST & \texttt{/\allowbreak api/\allowbreak assessments} & session & Create a blank assessment owned by the caller \\
-    GET & \texttt{/\allowbreak api/\allowbreak assessments} & session (scoped) & List assessments visible to the caller \\
-    GET & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}} & READ & Full editable working state \\
-    PUT & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak answers/\allowbreak \{qid\}} & WRITE & Idempotent autosave of one answer \\
-    PUT & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak annotations/\allowbreak \{bp\_\allowbreak id\}} & WRITE & Idempotent autosave of one N/A annotation \\
-    POST & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak score} & READ & Run the engine, return \texttt{Assessment\allowbreak Result} \\
-    POST & \texttt{/\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak recommendations} & READ & Narrative recommendations (AI or fallback) \\
-    \bottomrule
-  \end{tabular}
-  \caption{Main API endpoints}
-  \label{tab:backend-api-endpoints}
-\end{table}
+\texttt{POST /\allowbreak api/\allowbreak assessments/\allowbreak \{id\}/\allowbreak score} runs the engine and returns the serialised \texttt{Assessment\allowbreak Result}, but it never writes it back to the database, and it leaves the assessment's status untouched. I considered caching the result for performance, since recomputation is not free. A stored score can drift from its own inputs the moment an answer is edited or the referential is bumped to a new version, though, and a drifted score is exactly what the engine's determinism guarantee (P1, Chapter~\ref{chap:method}) exists to prevent. The result stays fully reproducible from the raw inputs plus the referential version, so recomputing it on every request is the only option that cannot go stale; a cache, if one is ever needed, would have to sit on top of that recomputation, never replace it. The same endpoint keeps user errors out of the \texttt{5xx} range: an incomplete questionnaire or an engine validation failure (\texttt{NAValidation\allowbreak Error}) is surfaced as a \texttt{422}, not a server error.  The full HTTP surface this backend exposes, with the access control applied to each route, is tabulated in Table~\ref{tab:backend-api-endpoints}, Appendix~\ref{app:tables}.
 
 % --------------------------------------------------------------
 \section{Frontend}
@@ -144,34 +82,9 @@ Real authentication did not appear all at once. From the first sprint, the backe
 
 \subsection{Invitation cascade and account activation}
 
-Accounts are never created directly. An admin or a consultant issues a single-use invitation bound to one email address and one role; the recipient turns it into an account by choosing a password at \texttt{POST /\allowbreak api/\allowbreak auth/\allowbreak accept}. I call this option B: an invitation link that leads to a chosen password, as opposed to a passwordless magic link that would log the user in directly. The backend never sends an email itself, \texttt{POST /\allowbreak api/\allowbreak auth/\allowbreak invitations} returns the clear token exactly once and a human relays it out of band, shown in Figure~\ref{fig:auth-invitation-cascade}. I chose this over building an SMTP integration because the environment genuinely has none configured, and because the consulting workflow is human-driven anyway: a consultant already knows the client they are onboarding and can hand them a link directly. A pure magic link would have avoided a password entirely, but it gives no durable credential for a client who comes back a week later, so option B trades one extra step at signup for a normal login afterwards. The very first admin account is seeded the same way, by \texttt{backend/\allowbreak bootstrap\_\allowbreak admin.\allowbreak py}, which creates an admin invitation with \texttt{invited\_\allowbreak by} left \texttt{NULL}; every other account, including that first admin, is activated through the exact same \texttt{accept\_\allowbreak invitation} path, so there is only one place in the codebase that enforces the password policy and the bcrypt hashing described below.
+Accounts are never created directly. An admin or a consultant issues a single-use invitation bound to one email address and one role; the recipient turns it into an account by choosing a password at \texttt{POST /\allowbreak api/\allowbreak auth/\allowbreak accept}. I call this option B: an invitation link that leads to a chosen password, as opposed to a passwordless magic link that would log the user in directly. The backend never sends an email itself, \texttt{POST /\allowbreak api/\allowbreak auth/\allowbreak invitations} returns the clear token exactly once and a human relays it out of band, a sequence set out in Figure~\ref{fig:auth-invitation-cascade} in Appendix~\ref{app:figures}. I chose this over building an SMTP integration because the environment genuinely has none configured, and because the consulting workflow is human-driven anyway: a consultant already knows the client they are onboarding and can hand them a link directly. A pure magic link would have avoided a password entirely, but it gives no durable credential for a client who comes back a week later, so option B trades one extra step at signup for a normal login afterwards. The very first admin account is seeded the same way, by \texttt{backend/\allowbreak bootstrap\_\allowbreak admin.\allowbreak py}, which creates an admin invitation with \texttt{invited\_\allowbreak by} left \texttt{NULL}; every other account, including that first admin, is activated through the exact same \texttt{accept\_\allowbreak invitation} path, so there is only one place in the codebase that enforces the password policy and the bcrypt hashing described below.
 
 Who may invite whom is fixed as well: an admin can invite an admin, a consultant or a respondent; a consultant can only invite a respondent; a respondent invites nobody. The role on an activated account comes from the invitation itself, never from the accept request, so a recipient has no way to hand themselves a higher role than the one they were invited with. Invitations are also single-use and time-bounded, a consumed token or an expired one cannot be replayed, which closes off both reusing an old link and leaving a leaked one usable indefinitely.
-
-\begin{figure}[ht!]
-  \centering
-  \begin{tikzpicture}[
-    box/.style={draw, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
-    human/.style={draw, dashed, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
-    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
-    node distance=11mm
-  ]
-
-  \node[box] (s1) {Admin or consultant: POST /api/auth/invitations\\(email, role)};
-  \node[box, below=of s1] (s2) {Backend stores an \texttt{Invitation}, returns\\the clear token once};
-  \node[human, below=of s2] (s3) {Token relayed out of band, by a human\\(no email sent by the backend)};
-  \node[box, below=of s3] (s4) {Recipient: POST /api/auth/accept\\(token, chosen password)};
-  \node[box, below=of s4] (s5) {Backend creates the \texttt{User}, opens a session,\\sets the HttpOnly session cookie};
-
-  \draw[arr] (s1) -- (s2);
-  \draw[arr] (s2) -- (s3);
-  \draw[arr] (s3) -- (s4);
-  \draw[arr] (s4) -- (s5);
-
-  \end{tikzpicture}
-  \caption{Invitation cascade and account activation flow}
-  \label{fig:auth-invitation-cascade}
-\end{figure}
 
 \subsection{Server-side sessions, not JWT}
 
@@ -199,33 +112,7 @@ The three denial codes are not interchangeable. A \texttt{401} means the caller 
 
 \subsection{Defence in depth: the frontend never enforces access}
 
-Section~\ref{sec:platform-frontend} already noted that the interface only adapts to a role, it does not enforce one. The reasoning belongs here: a client-side guard is code a user controls and can simply skip, so it is not a security boundary by definition, and treating it as one would be a false sense of safety. \texttt{lib/\allowbreak auth.\allowbreak ts} mirrors the backend's role hierarchy purely to populate invitation dropdowns with the roles a given user is allowed to grant, and the backend re-checks that choice independently every time; the frontend's actual job is narrower, to avoid rendering a screen that would immediately fail against the checks above. The login and role-gated screens reuse the same design tokens introduced in Section~\ref{sec:platform-frontend} rather than a new colour scheme, which keeps them consistent with the rest of the interface at no extra cost.
-
-\begin{table}[ht!]
-  \centering
-  \begin{tabular}{@{}p{3.6cm}p{4.4cm}p{4.6cm}@{}}
-    \toprule
-    Measure & Where & Risk mitigated \\
-    \midrule
-    bcrypt hashing (salted, adaptive cost, direct call) & \texttt{security.\allowbreak hash\_\allowbreak password} & Offline password cracking after a DB breach \\
-    Password policy (length, byte cap, blocklist, diversity) & \texttt{security.\allowbreak validate\_\allowbreak password\_\allowbreak policy} & Weak/guessable credentials; bcrypt's silent truncation \\
-    Plaintext never stored & \texttt{User.\allowbreak password\_\allowbreak hash} & Credential disclosure on data-at-rest leak (P3) \\
-    256-bit tokens, stored only as SHA-256 & \texttt{security.\allowbreak generate\_\allowbreak token} & Token guessing; theft via DB read \\
-    Single-use, expiring invitations & \texttt{Invitation} & Link replay; long-lived leaked links \\
-    Anti-enumeration (dummy verify, generic 401) & \texttt{authenticate} & Account enumeration via timing/response \\
-    Brute-force lockout & \texttt{User.\allowbreak failed\_\allowbreak login\_\allowbreak count} & Password brute-forcing / spraying \\
-    Server-side sessions, revoked on logout & \texttt{Session} & Session persistence after logout \\
-    HttpOnly / SameSite=Lax / Secure cookie & \texttt{deps.\allowbreak set\_\allowbreak session\_\allowbreak cookie} & XSS token theft, CSRF, sniffing over HTTP \\
-    Centralised access control & \texttt{authz.\allowbreak py} & OWASP A01, Broken Access Control; insecure direct object references \\
-    Invitation role hierarchy, no self-elevation & \texttt{authz.\allowbreak can\_\allowbreak invite\_\allowbreak role} & Privilege escalation via invitations \\
-    Listing scoped in SQL & \texttt{crud.\allowbreak list\_\allowbreak visible\_\allowbreak assessments} & Cross-tenant exposure / paging past scope \\
-    Uniform 404 policy & \texttt{authz} dependencies & Resource-existence disclosure \\
-    No PII to the LLM, N/A never logged & \texttt{app/\allowbreak llm/\allowbreak recommendations.\allowbreak py} & Sensitive-data leakage to AI layer / logs \\
-    \bottomrule
-  \end{tabular}
-  \caption{Security measures and the risks they mitigate}
-  \label{tab:auth-owasp-measures}
-\end{table}
+Section~\ref{sec:platform-frontend} already noted that the interface only adapts to a role, it does not enforce one. The reasoning belongs here: a client-side guard is code a user controls and can simply skip, so it is not a security boundary by definition, and treating it as one would be a false sense of safety. \texttt{lib/\allowbreak auth.\allowbreak ts} mirrors the backend's role hierarchy purely to populate invitation dropdowns with the roles a given user is allowed to grant, and the backend re-checks that choice independently every time; the frontend's actual job is narrower, to avoid rendering a screen that would immediately fail against the checks above. The login and role-gated screens reuse the same design tokens introduced in Section~\ref{sec:platform-frontend} rather than a new colour scheme, which keeps them consistent with the rest of the interface at no extra cost.  Table~\ref{tab:auth-owasp-measures} in Appendix~\ref{app:tables} gathers every measure described in this section alongside the risk it is meant to close, so that the coverage can be read in one pass rather than reconstructed from the prose.
 
 % --------------------------------------------------------------
 \section{Local AI integration}
@@ -235,25 +122,7 @@ The AI layer sits strictly downstream of the engine. Per the referential's own \
 
 \subsection{The deployed model and its candidates}
 
-The referential's \texttt{ai\_\allowbreak module\_\allowbreak scope} lists four candidate models, \texttt{mistral:\allowbreak 7b-\allowbreak instruct}, \texttt{mixtral:\allowbreak 8x7b}, \texttt{llama3.\allowbreak 1:\allowbreak 8b} and \texttt{qwen2.\allowbreak 5:\allowbreak 7b}, three of them in the 7 to 8 billion parameter range and the fourth a mixture-of-experts (MoE) model. All four are larger than what the platform actually runs: Ollama runs \texttt{qwen2.\allowbreak 5:\allowbreak 3b} by default, on CPU inside the VirtualBox VM described in Section~\ref{sec:platform-networking}. Table~\ref{tab:ai-model-comparison} records each model and what became of it; the arbitration itself came down to latency rather than quality in the abstract, and Chapter~\ref{chap:validation} sets out the figures behind it and the limits of the comparison. The deployed model is one environment variable away from being swapped once a GPU or a larger machine is available.
-
-\begin{table}[ht!]
-  \centering
-  \small
-  \begin{tabular}{@{}llp{3.1cm}p{3.6cm}@{}}
-    \toprule
-    Model & Size & Approx. generation time (CPU, in VM) & Status \\
-    \midrule
-    \texttt{qwen2.\allowbreak 5:\allowbreak 3b} & 3B & about 1 minute & Deployed (default) \\
-    \texttt{mistral:\allowbreak 7b-\allowbreak instruct} & 7B & not run & Candidate \\
-    \texttt{mixtral:\allowbreak 8x7b} & 8x7B (MoE) & not run & Candidate \\
-    \texttt{llama3.\allowbreak 1:\allowbreak 8b} & 8B & not run & Candidate \\
-    \texttt{qwen2.\allowbreak 5:\allowbreak 7b} & 7B & several minutes & Candidate, rejected on latency \\
-    \bottomrule
-  \end{tabular}
-  \caption{The deployed model and the four candidates listed in the referential}
-  \label{tab:ai-model-comparison}
-\end{table}
+The referential's \texttt{ai\_\allowbreak module\_\allowbreak scope} lists four candidate models, \texttt{mistral:\allowbreak 7b-\allowbreak instruct}, \texttt{mixtral:\allowbreak 8x7b}, \texttt{llama3.\allowbreak 1:\allowbreak 8b} and \texttt{qwen2.\allowbreak 5:\allowbreak 7b}, three of them in the 7 to 8 billion parameter range and the fourth a mixture-of-experts (MoE) model. All four are larger than what the platform actually runs: Ollama runs \texttt{qwen2.\allowbreak 5:\allowbreak 3b} by default, on CPU inside the VirtualBox VM described in Section~\ref{sec:platform-networking}. Table~\ref{tab:ai-model-comparison}, in Appendix~\ref{app:tables}, records each model and what became of it; the arbitration itself came down to latency rather than quality in the abstract, and Chapter~\ref{chap:validation} sets out the figures behind it and the limits of the comparison. The deployed model is one environment variable away from being swapped once a GPU or a larger machine is available.
 
 \subsection{Anti-hallucination guardrails}
 
@@ -263,42 +132,9 @@ The scoring engine's independent audit (Chapter~\ref{chap:scoring-engine}) had f
 
 \subsection{Deterministic fallback}
 
-On any failure from the model, Ollama unreachable, a timeout, or output the parser cannot make sense of, the endpoint degrades to the referential's own static \texttt{fallback\_\allowbreak recommendation\_\allowbreak when\_\allowbreak low\_\allowbreak maturity} text for each weak best practice, and reports \texttt{source="fallback"} so the frontend can be honest about where the text came from (Figure~\ref{fig:ai-pipeline}). The score itself is never at the mercy of this: it is computed and returned by the engine regardless of whether the narrative generation succeeds. The same property is what lets the backend's test suite, and the end-to-end smoke test, run without a live model at all; the fallback path is exercised directly rather than skipped.
+On any failure from the model, Ollama unreachable, a timeout, or output the parser cannot make sense of, the endpoint degrades to the referential's own static \texttt{fallback\_\allowbreak recommendation\_\allowbreak when\_\allowbreak low\_\allowbreak maturity} text for each weak best practice, and reports \texttt{source="fallback"} so the frontend can be honest about where the text came from (Figure~\ref{fig:ai-pipeline}, Appendix~\ref{app:figures}). The score itself is never at the mercy of this: it is computed and returned by the engine regardless of whether the narrative generation succeeds. The same property is what lets the backend's test suite, and the end-to-end smoke test, run without a live model at all; the fallback path is exercised directly rather than skipped.
 
-\begin{figure}[ht!]
-  \centering
-  \begin{tikzpicture}[
-    box/.style={draw, rounded corners, align=center, minimum width=5.4cm, minimum height=1.15cm, font=\small},
-    fbox/.style={draw, dashed, rounded corners, align=center, minimum width=4.8cm, minimum height=1.3cm, font=\small},
-    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
-    farr/.style={-{Straight Barb[angle=60:2mm]}, thick, dashed},
-    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
-    node distance=13mm and 46mm
-  ]
 
-  \node[box] (result) {AssessmentResult + referential text\\(computed, read only)};
-  \node[box, below=of result] (prompt) {Prompt builder\\(BP ids only, no PII)};
-  \node[box, below=of prompt] (ollama) {Ollama \texttt{/\allowbreak api/\allowbreak generate}\\(qwen2.5:3b)};
-  \node[box, below=of ollama] (parser) {Parser\\(canonicalise bp\_id, discard unknown BP)};
-  \node[box, below=of parser] (ui) {UI: narrative and recommendations};
-
-  \node[fbox, right=of prompt, yshift=-8mm] (fallback) {Referential static fallback\\(\texttt{source="fallback"})};
-
-  \draw[arr] (result) -- (prompt);
-  \draw[arr] (prompt) -- (ollama);
-  \draw[arr] (ollama) -- (parser);
-  \draw[arr] (parser) -- (ui);
-
-  \draw[farr] (ollama.east) -- (fallback.south west)
-    node[lbl, pos=0.12, above right] {unreachable or timeout};
-  \draw[farr] (parser.east) -- (fallback.south east)
-    node[lbl, pos=0.12, below right] {unparseable output};
-  \draw[farr] (fallback.west) -- ++(-6mm,0) |- (ui.east);
-
-  \end{tikzpicture}
-  \caption{Local AI pipeline, from computed result to narrative, with the deterministic fallback path}
-  \label{fig:ai-pipeline}
-\end{figure}
 
 \subsection{Asynchronous UX for a slow local model}
 
@@ -312,23 +148,7 @@ The dev and demo setup does not run everything on the same host. The frontend an
 
 \subsection{The links that must agree}
 
-Three settings have to agree at once for a request to make it from a browser to the engine and back: where the frontend believes the backend is, which origins the backend accepts requests from, and where the backend believes Ollama is. Table~\ref{tab:network-links} lists all three, where each is set, and its default. Two further settings matter without being part of the wiring itself: \texttt{OLLAMA\_\allowbreak MODEL} (the model name, \texttt{qwen2.\allowbreak 5:\allowbreak 3b} by default, Section~\ref{sec:platform-local-ai}) and \texttt{OLLAMA\_\allowbreak TIMEOUT\_\allowbreak SECONDS} (300 by default, generous because CPU inference is slow). When all three processes run on one host, the defaults already agree and nothing needs changing; the VirtualBox setup below is the case where they do not.
-
-\begin{table}[ht!]
-  \centering
-  \begin{tabular}{@{}p{3.4cm}p{3.0cm}p{3.2cm}p{4.2cm}@{}}
-    \toprule
-    Link & Setting & Where & Default \\
-    \midrule
-    Frontend $\rightarrow$ backend & \texttt{NEXT\_\allowbreak PUBLIC\_\allowbreak API\_\allowbreak URL} & \texttt{frontend/\allowbreak .\allowbreak env.\allowbreak local} & \texttt{http:\allowbreak /\allowbreak /\allowbreak localhost:\allowbreak 8000} \\
-    Frontend proxy $\rightarrow$ backend & \texttt{BACKEND\_ORIGIN} & \texttt{frontend/next.config.mjs} & \texttt{http://localhost:8000} \\
-    Backend allows frontend origin (CORS) & \texttt{cors\_\allowbreak origins} & \texttt{backend/\allowbreak app/\allowbreak config.\allowbreak py} & includes \texttt{localhost:\allowbreak 3000}, \texttt{127.\allowbreak 0.\allowbreak 0.\allowbreak 1:\allowbreak 3000} \\
-    Backend $\rightarrow$ Ollama & \texttt{OLLAMA\_\allowbreak BASE\_\allowbreak URL} & env / \texttt{backend/\allowbreak app/\allowbreak config.\allowbreak py} & \texttt{http:\allowbreak /\allowbreak /\allowbreak 127.\allowbreak 0.\allowbreak 0.\allowbreak 1:\allowbreak 11434} \\
-    \bottomrule
-  \end{tabular}
-  \caption{Network links between frontend, backend and Ollama}
-  \label{tab:network-links}
-\end{table}
+Three settings have to agree at once for a request to make it from a browser to the engine and back: where the frontend believes the backend is, which origins the backend accepts requests from, and where the backend believes Ollama is. Table~\ref{tab:network-links}, in Appendix~\ref{app:tables}, lists all three, where each is set, and its default. Two further settings matter without being part of the wiring itself: \texttt{OLLAMA\_\allowbreak MODEL} (the model name, \texttt{qwen2.\allowbreak 5:\allowbreak 3b} by default, Section~\ref{sec:platform-local-ai}) and \texttt{OLLAMA\_\allowbreak TIMEOUT\_\allowbreak SECONDS} (300 by default, generous because CPU inference is slow). When all three processes run on one host, the defaults already agree and nothing needs changing; the VirtualBox setup below is the case where they do not.
 
 \subsection{VirtualBox NAT VM topology}
 

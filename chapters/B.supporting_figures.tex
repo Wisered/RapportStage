@@ -1,0 +1,304 @@
+\chapter{Supporting Figures and Code Excerpts}
+\label{app:figures}
+
+This appendix collects the diagrams and the code excerpt that illustrate, without carrying,
+the arguments made in the body of the report.
+
+% ---- coller ici fig. 2.1, puis fig. 5.2, puis listing 5.1 ----
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    phase/.style={
+      draw, thick, rounded corners, minimum width=3.1cm, minimum height=1.5cm,
+      align=center, font=\sffamily\small
+    },
+    lbl/.style={font=\sffamily\scriptsize, align=center},
+    arr/.style={-{Stealth[length=2.5mm]}, thick}
+  ]
+
+  \node[phase] (prev) at (0, 3.6) {Prevention};
+  \node[phase] (prep) at (3.6, 0) {Preparedness};
+  \node[phase] (resp) at (0, -3.6) {Response};
+  \node[phase] (recv) at (-3.6, 0) {Recovery};
+
+  \node[lbl, above=1mm of prev] {25\% (3 BPs)};
+  \node[lbl, right=1mm of prep] {25\% (9 BPs)};
+  \node[lbl, below=1mm of resp] {25\% (2 BPs)};
+  \node[lbl, left=1mm of recv] {25\% (2 BPs)};
+
+  \draw[arr] (prev) to[bend left=18] (prep);
+  \draw[arr] (prep) to[bend left=18] (resp);
+  \draw[arr] (resp) to[bend left=18] (recv);
+  \draw[arr] (recv) to[bend left=18] (prev);
+
+  \node[lbl, font=\sffamily\footnotesize\itshape] at (0,0)
+    {Cyber crisis\\management cycle};
+
+  \end{tikzpicture}
+  \caption[The four phases of the ENISA cyber crisis management framework]{The four
+phases of the ENISA cyber crisis management framework, each normalised to an equal
+25\% weight in the global maturity score regardless of the number of best practices
+it contains (source: referential.yaml, derived from \cite{enisa_crisis_mgmt_2024})}
+  \label{fig:enisa-phases}
+\end{figure}
+
+% -- Emplacement figure : diagramme de modules / couches
+\begin{figure}[htbp]
+  \centering
+  % Requiert dans le préambule :
+  %   \usepackage{tikz}
+  %   \usetikzlibrary{positioning, arrows.meta, fit}
+  \begin{tikzpicture}[
+      >={Latex[length=2mm]},
+      font=\small,
+      mod/.style={draw, rounded corners, align=center, text width=3.0cm,
+                  minimum height=7mm, fill=white},
+      io/.style={draw, align=center, text width=2.4cm, minimum height=8mm,
+                 font=\footnotesize, fill=gray!8},
+      note/.style={align=center, font=\footnotesize\itshape, text=gray!50!black},
+      arr/.style={-{Latex[length=2mm]}, thick},
+    ]
+    \node[mod] (loader) {referential\_loader};
+    \node[mod, below=3.5mm of loader] (evi) {evidence};
+    \node[mod, below=3.5mm of evi]   (na)  {na\_rules};
+    \node[mod, below=3.5mm of na]    (agg) {aggregation};
+    \node[mod, below=3.5mm of agg]   (fin) {finalization};
+    \node[note, below=3mm of fin]    (models) {models: referential $\cdot$ inputs $\cdot$ outputs};
+
+    \node[draw, dashed, rounded corners, inner sep=5mm,
+          fit=(loader)(evi)(na)(agg)(fin)(models),
+          label={[note]above:Scoring engine: pure, deterministic, no I/O}] (engine) {};
+
+    \node[io, left=2.0cm of loader] (ref) {referential.yaml};
+    \node[io, left=2.0cm of agg]    (db)  {Database (stored answers)};
+    \node[io, below=4mm of db]      (bridge) {scoring\_bridge};
+    \node[io, right=2.0cm of fin]   (result) {AssessmentResult (audit trace)};
+    \node[note, below=3mm of result, text width=3.2cm]
+         {read by the API and AI stage, never modified};
+
+    \draw[arr] (ref)      -- (loader.west);
+    \draw[arr] (db)       -- (bridge);
+    \draw[arr] (bridge)   -- (agg.west);
+    \draw[arr] (fin.east) -- (result);
+  \end{tikzpicture}
+  \caption{Module decomposition of the scoring engine and its layering
+           (pure engine vs. I/O boundary).}
+  \label{fig:se-modules}
+\end{figure}
+
+% Extrait de app/scoring/engine.py (imports et docstring omis pour la place ;
+% deux appels reformates sur deux lignes pour tenir dans la largeur de page).
+% Le style de listing est celui de la classe tnreport (rien a definir).
+\begin{lstlisting}[language=Python,caption={The top-level \texttt{score\_assessment} routine} ,label={lst:se-engine}]
+def score_assessment(
+    assessment: AssessmentInput,
+    referential: Referential,
+) -> AssessmentResult:
+    # Stage 0: validate N/A annotations (raises if invalid).
+    validate_na_annotations(assessment, referential)
+
+    # Stages 1-3: evidence cap, question and BP scoring (N/A excluded).
+    all_bp_results: list[BPResult] = [
+        score_bp(bp, assessment, referential)
+        for bp in referential.best_practices
+    ]
+
+    # Stage 4: aggregate BPs into phases.
+    phase_results: list[PhaseResult] = []
+    for phase in referential.phases:
+        phase_bps = [bp for bp in all_bp_results if bp.phase == phase.id]
+        phase_results.append(score_phase(phase, phase_bps))
+
+    # Stage 5: raw global score (mean of phases).
+    raw_global = compute_raw_global(phase_results)
+
+    # Stage 6: foundational gates (cap if a foundational BP is weak).
+    gated_score, gates_applied = apply_foundational_gates(
+        raw_global, all_bp_results, referential)
+
+    # Stage 7: consistency penalties (subtract, floor 0).
+    final_score, penalties_applied = apply_consistency_penalties(
+        gated_score, all_bp_results, referential)
+
+    # Stage 9: map the final score to a global maturity level.
+    global_level = map_global_level(final_score, referential)
+
+    return AssessmentResult(
+        referential_version=referential.metadata.referential_version,
+        phase_results=phase_results,
+        raw_global_score=raw_global,
+        gated_score=gated_score,
+        final_global_score=final_score,
+        global_level=global_level,
+        gates_applied=gates_applied,
+        penalties_applied=penalties_applied,
+        # na_bp_ids / capped_question_ids: audit-trace views (omitted here)
+    )
+\end{lstlisting}
+
+\clearpage
+
+% ---- coller ici fig. 6.1, puis fig. 6.3, puis fig. 6.4 ----
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=3.4cm, minimum height=1.1cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    node distance=15mm and 28mm
+  ]
+
+  \node[box] (browser) {Browser};
+  \node[box, below=of browser] (frontend) {Frontend\\Next.js 14 (App Router)};
+  \node[box, below=of frontend] (backend) {Backend API\\FastAPI};
+  \node[box, right=of backend] (db) {SQLite\\(SQLAlchemy async + Alembic)};
+  \node[box, below=of backend] (bridge) {scoring\_bridge.py\\(translation seam)};
+  \node[box, below=of bridge] (engine) {Scoring engine\\(frozen, Ch.~5)};
+  \node[box, right=of bridge] (ai) {Local AI layer\\(Ollama)};
+
+  \draw[arr] (browser) -- (frontend);
+  \draw[arr] (frontend) -- (backend)
+    node[lbl, midway, right=2mm] {HTTP/JSON,\\session cookie};
+  \draw[arr] (backend) -- (db)
+    node[lbl, midway, above=2mm] {raw answers,\\BP annotations};
+  \draw[arr] (backend) -- (bridge)
+    node[lbl, midway, left=2mm] {stored\\Assessment};
+  \draw[arr] ([xshift=-6mm]bridge.south) -- ([xshift=-6mm]engine.north)
+    node[lbl, midway, left=2mm] {AssessmentInput};
+  \draw[arr] ([xshift=6mm]engine.north) -- ([xshift=6mm]bridge.south)
+    node[lbl, midway, right=2mm] {AssessmentResult};
+  \draw[arr, dashed] (bridge) -- (ai)
+    node[lbl, midway, above=2mm] {AssessmentResult,\\referential (read only)};
+
+  \end{tikzpicture}
+  \caption{Layered architecture of the platform, from the browser to the scoring engine and the local AI layer}
+  \label{fig:platform-architecture-layers}
+\end{figure}
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
+    human/.style={draw, dashed, rounded corners, align=center, minimum width=8.2cm, minimum height=1.1cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    node distance=11mm
+  ]
+
+  \node[box] (s1) {Admin or consultant: POST /api/auth/invitations\\(email, role)};
+  \node[box, below=of s1] (s2) {Backend stores an \texttt{Invitation}, returns\\the clear token once};
+  \node[human, below=of s2] (s3) {Token relayed out of band, by a human\\(no email sent by the backend)};
+  \node[box, below=of s3] (s4) {Recipient: POST /api/auth/accept\\(token, chosen password)};
+  \node[box, below=of s4] (s5) {Backend creates the \texttt{User}, opens a session,\\sets the HttpOnly session cookie};
+
+  \draw[arr] (s1) -- (s2);
+  \draw[arr] (s2) -- (s3);
+  \draw[arr] (s3) -- (s4);
+  \draw[arr] (s4) -- (s5);
+
+  \end{tikzpicture}
+  \caption{Invitation cascade and account activation flow}
+  \label{fig:auth-invitation-cascade}
+\end{figure}
+
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[
+    box/.style={draw, rounded corners, align=center, minimum width=5.4cm, minimum height=1.15cm, font=\small},
+    fbox/.style={draw, dashed, rounded corners, align=center, minimum width=4.8cm, minimum height=1.3cm, font=\small},
+    arr/.style={-{Straight Barb[angle=60:2mm]}, thick},
+    farr/.style={-{Straight Barb[angle=60:2mm]}, thick, dashed},
+    lbl/.style={font=\scriptsize, align=center, fill=white, inner sep=1pt},
+    node distance=13mm and 46mm
+  ]
+
+  \node[box] (result) {AssessmentResult + referential text\\(computed, read only)};
+  \node[box, below=of result] (prompt) {Prompt builder\\(BP ids only, no PII)};
+  \node[box, below=of prompt] (ollama) {Ollama \texttt{/\allowbreak api/\allowbreak generate}\\(qwen2.5:3b)};
+  \node[box, below=of ollama] (parser) {Parser\\(canonicalise bp\_id, discard unknown BP)};
+  \node[box, below=of parser] (ui) {UI: narrative and recommendations};
+
+  \node[fbox, right=of prompt, yshift=-8mm] (fallback) {Referential static fallback\\(\texttt{source="fallback"})};
+
+  \draw[arr] (result) -- (prompt);
+  \draw[arr] (prompt) -- (ollama);
+  \draw[arr] (ollama) -- (parser);
+  \draw[arr] (parser) -- (ui);
+
+  \draw[farr] (ollama.east) -- (fallback.south west)
+    node[lbl, pos=0.12, above right] {unreachable or timeout};
+  \draw[farr] (parser.east) -- (fallback.south east)
+    node[lbl, pos=0.12, below right] {unparseable output};
+  \draw[farr] (fallback.west) -- ++(-6mm,0) |- (ui.east);
+
+  \end{tikzpicture}
+  \caption{Local AI pipeline, from computed result to narrative, with the deterministic fallback path}
+  \label{fig:ai-pipeline}
+\end{figure}
+
+\clearpage
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+      >=Latex,
+      node distance=4mm,
+      proc/.style={
+        draw=black!65, thick, rounded corners=2pt, fill=black!4,
+        minimum height=1.0cm, text width=1.9cm, align=center,
+        font=\footnotesize
+      },
+      data/.style={
+        draw=black!55, thick, dashed, rounded corners=2pt, fill=white,
+        minimum height=1.0cm, text width=1.9cm, align=center,
+        font=\footnotesize\itshape
+      },
+      band/.style={
+        draw, rounded corners=2pt, thick, minimum height=0.85cm,
+        font=\scriptsize, align=center, inner sep=4pt
+      },
+      guide/.style={draw=black!35, dashed, line width=0.5pt},
+      marker/.style={coordinate}
+    ]
+
+    \node[proc]                          (n1) {HTTP\\request};
+    \node[proc, right=of n1]             (n2) {FastAPI\\endpoint + DB};
+    \node[proc, right=of n2]             (n3) {scoring\_\\bridge.py};
+    \node[data, right=of n3]             (n4) {Assessment\\Input};
+    \node[proc, right=of n4]             (n5) {Engine\\(Ch.~5)};
+    \node[data, right=of n5]             (n6) {Assessment\\Result};
+    \node[proc, right=of n6]             (n7) {HTTP\\response};
+
+    \draw[->] (n1) -- (n2);
+    \draw[->] (n2) -- (n3);
+    \draw[->] (n3) -- (n4);
+    \draw[->] (n4) -- (n5);
+    \draw[->] (n5) -- (n6);
+    \draw[->] (n6) -- (n7);
+
+    \node[marker] (m4)  [yshift=-1.325cm] at (n4.west) {};
+    \node[marker] (m6)  [yshift=-1.325cm] at (n6.east) {};
+    \node[marker] (m2)  [yshift=-2.425cm] at (n2.west) {};
+    \node[marker] (m4b) [yshift=-2.425cm] at (n4.east) {};
+    \node[marker] (m1)  [yshift=-3.525cm] at (n1.west) {};
+    \node[marker] (m7)  [yshift=-3.525cm] at (n7.east) {};
+
+    \draw[guide] (n4.south west) -- (m4);
+    \draw[guide] (n6.south east) -- (m6);
+    \draw[guide] (n2.south west) -- (m2);
+    \draw[guide] (n4.south east) -- (m4b);
+    \draw[guide] (n1.south west) -- (m1);
+    \draw[guide] (n7.south east) -- (m7);
+
+    \node[band, fit=(m4)(m6), draw=blue!55!black, fill=blue!8, text=blue!55!black]
+      {Engine unit tests};
+    \node[band, fit=(m2)(m4b), draw=teal!60!black, fill=teal!8, text=teal!60!black]
+      {End-to-end bridge\\cross-check};
+    \node[band, fit=(m1)(m7), draw=black!55, fill=black!5, text=black!55]
+      {Backend integration tests};
+
+  \end{tikzpicture}
+  \caption{Overview of the validation pipeline}
+  \label{fig:validation-pipeline}
+\end{figure}
