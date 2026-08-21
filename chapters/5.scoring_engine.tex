@@ -125,9 +125,8 @@ choices I would defend or revisit.
 \subsection{From a consulting need to a specification}
 
 The scoring specification has a concrete origin. The ENISA framework~\cite{enisa_crisis_mgmt_2024}
-describes sixteen best practices across four crisis phases, but it stops at
-description: it offers no way to measure how mature an organisation actually is
-against them. At the same time, the NIS2 directive~\cite{nis2_directive_2022} pushes organisations
+describes sixteen best practices across four crisis phases but provides no way to
+measure adherence to them, the gap Chapter~\ref{chap:context} sets out in full. At the same time, the NIS2 directive~\cite{nis2_directive_2022} pushes organisations
 to demonstrate crisis-management maturity, and the general-purpose self-assessments
 that exist, such as the CISA Cyber Resilience Review~\cite{cisacrr} or maturity
 ratings inspired by the NIST Cybersecurity Framework~\cite{nist_csf2_2024}, do not map
@@ -172,7 +171,12 @@ practices in a pair are expected to progress together. Each of these elements
 carries its own thresholds: a minimum score and a cap for the gates, a maximum gap
 and a point penalty for the pairs. Keeping these values in the referential rather
 than in the code lets the framework evolve through a version bump, with no change
-to the engine.
+to the engine. Two further per-best-practice fields, \texttt{nis2\_\allowbreak articles} 
+and \texttt{iso\_\allowbreak 27035\_\allowbreak clauses}, are declared alongside these rules 
+but carry no values. They are empty placeholders, reserved for a future mapping of 
+each best practice onto the directive's articles and the standard's clauses 
+(Chapter~\ref{chap:impact}); no such mapping exists in version~1.1.0, and the engine 
+never reads them.
 
 \subsection{Output contract and requirements}
 
@@ -334,13 +338,37 @@ executive audience. Table~\ref{tab:se-levels} gives the bands, which tile the wh
   \end{tabular}
 \end{table}
 
+\subsection{A worked example}
+The example below follows a single assessment through the pipeline. It is
+deliberately simple, chosen so that one run triggers an evidence cap, a foundational
+gate and a consistency penalty, with each mechanism visible in turn.
+Table~\ref{tab:se-worked-example} gives the running value after each stage.
+
+% -- Emplacement tableau : exemple numérique déroulé de bout en bout
+\begin{table}[htbp]
+  \centering
+  \caption{End-to-end worked example: from raw answers to the final global score.}
+  \label{tab:se-worked-example}
+  \begin{tabular}{@{}p{2.8cm}p{3.0cm}p{5.4cm}@{}}
+    \toprule
+    Pipeline stage & Running value & Why \\
+    \midrule
+    Evidence cap           & BP08\_Q3: 3 capped to 1 & No formal evidence limits the claim to \emph{Ad hoc}. \\
+    BP / phase aggregation & BP08 $= 30/100$         & Weak effective maturities across its three questions. \\
+    Phase normalisation    & Raw global $= 72$       & Mean of the four phase scores, 25\,\% each. \\
+    Foundational gate      & Capped to $65$ (BP08 $< 40$) & A weak escalation baseline caps the whole score. \\
+    Consistency penalty    & $65 - 5 = 60$           & BP07 and BP08 differ by more than two maturity levels. \\
+    Finalisation           & $60 \rightarrow$ Level~2 & Mapped to \emph{Defined} for executive reporting. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 
 \subsection{Why gates come before penalties}
 
 The order of the last two mechanisms is a deliberate choice, and it changes the
-result. Consider an assessment whose raw global score is 72, where a foundational
-gate caps it at 65 and one consistency pair triggers a five-point penalty. Applying
-the gate first gives 65, then the penalty brings it to 60. Reversing the order would
+result. In the example just worked through, applying the gate first caps the raw 72
+at 65, then the penalty brings it to 60. Reversing the order would
 deduct the penalty first, giving 67, then cap at 65, so the incoherence would
 disappear into the ceiling. The chosen order treats the gate as a hard ceiling caused
 by a missing prerequisite and makes the incoherence penalty bite on top of it, which
@@ -392,31 +420,6 @@ not an average of them.
            failure mode of a naive weighted average.}
   \label{fig:se-pipeline}
 \end{figure}
-
-\subsection{A worked example}
-The example below follows a single assessment through the pipeline. It is
-deliberately simple, chosen so that one run triggers an evidence cap, a foundational
-gate and a consistency penalty, with each mechanism visible in turn.
-Table~\ref{tab:se-worked-example} gives the running value after each stage.
-
-% -- Emplacement tableau : exemple numérique déroulé de bout en bout
-\begin{table}[htbp]
-  \centering
-  \caption{End-to-end worked example: from raw answers to the final global score.}
-  \label{tab:se-worked-example}
-  \begin{tabular}{@{}p{2.8cm}p{3.0cm}p{5.4cm}@{}}
-    \toprule
-    Pipeline stage & Running value & Why \\
-    \midrule
-    Evidence cap           & BP08\_Q3: 3 capped to 1 & No formal evidence limits the claim to \emph{Ad hoc}. \\
-    BP / phase aggregation & BP08 $= 30/100$         & Weak effective maturities across its three questions. \\
-    Phase normalisation    & Raw global $= 72$       & Mean of the four phase scores, 25\,\% each. \\
-    Foundational gate      & Capped to $65$ (BP08 $< 40$) & A weak escalation baseline caps the whole score. \\
-    Consistency penalty    & $65 - 5 = 60$           & BP07 and BP08 differ by more than two maturity levels. \\
-    Finalisation           & $60 \rightarrow$ Level~2 & Mapped to \emph{Defined} for executive reporting. \\
-    \bottomrule
-  \end{tabular}
-\end{table}
 
 
 % =====================================================================
@@ -759,10 +762,9 @@ need a different justification.
 
 \subsection{Smaller deliberate choices}
 
-A few smaller decisions are of the same kind. The four phases carry equal weight, a
-structural choice that stops Preparedness and its nine best practices from drowning
-out the two-practice phases; that weighting is now read from the referential, so a
-later version could revisit it. The penalty threshold is strict, so a gap of exactly
+A few smaller decisions are of the same kind. The four phases carry equal weight, the
+structural choice argued in Section~\ref{sec:se-pipeline}; that weighting is now read
+from the referential, so a later version could revisit it. The penalty threshold is strict, so a gap of exactly
 two levels does not penalise while a gap just above it does. The global score is
 rounded to the nearest even value at the level boundaries. None of these is
 controversial on its own, yet each is a decision a careful reader could question, so
@@ -783,10 +785,9 @@ Set against these limits, the two properties the chapter opened with are what gi
 the engine value beyond this single project. Because the score is deterministic and
 fully traced, the AI layer added in Chapter~\ref{chap:platform} can be held to a
 strict and safe role: it reads the \texttt{AssessmentResult} and the referential to
-phrase recommendations for the weakest best practices, it is given only scores,
-best-practice identifiers and referential text, never client names or the private
-N/A justifications, and any failure on its side degrades to a deterministic
-recommendation drawn from the referential. The engine remains the single arbiter of
+phrase recommendations for the weakest best practices, never client names or the
+private N/A justifications, and any failure on its side degrades to a deterministic
+recommendation drawn from the referential (Chapter~\ref{chap:platform}). The engine remains the single arbiter of
 the numbers, and the parts of the model that stay matters of judgement are exactly
 the ones Chapter~\ref{chap:pm} returns to with the benefit of hindsight.
 

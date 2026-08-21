@@ -124,7 +124,7 @@ figure that describes the platform as a whole is 141 tests, 70 for the
 engine and 71 for the API and the backend integration. Three of these 71
 backend tests are dedicated specifically to a privacy guarantee, that
 neither N/A justification text nor any personal identifier ever reaches the
-AI prompt, which Section~\ref{sec:validation-failure-modes} returns to.
+AI prompt, which Chapter~\ref{chap:platform} describes test by test.
 
 \subsection{Deterministic testing philosophy}
 \label{sec:validation-deterministic-philosophy}
@@ -199,22 +199,15 @@ dropped answer, a best practice marked N/A on one side and not the other, so
 it is deliberately isolated in one module, \texttt{scoring\_bridge.py}, rather
 than spread across the API layer.
 
-\texttt{scoring\_bridge.py} is the only module in the codebase that imports
-both the SQLAlchemy models and the engine's Pydantic input models. Its
-\texttt{build\_assessment\_input} function maps a stored \texttt{Assessment}
-row, with its answers and best-practice annotations eagerly loaded, into an
-\texttt{AssessmentInput}, and \texttt{missing\_answers} independently
-precomputes the full list of unanswered questions.
-
-This second function exists because of a risk raised during the engine audit
-(Chapter~\ref{chap:scoring-engine}), before the bridge was written, an
-incomplete assessment would reach the engine, which raises a bare
-\texttt{KeyError} on the first missing answer it encounters rather than
-reporting the assessment as incomplete. Left unhandled, this would have
-surfaced as an opaque \texttt{500} response. \texttt{missing\_answers} closes
-that gap ahead of time, so the scoring endpoint can return every missing
-answer at once as a \texttt{422}, keeping genuine user errors out of the
-server-error range, as documented in Chapter~\ref{chap:platform}. This is a small
+The module and its two functions, \texttt{build\_assessment\_input} and
+\texttt{missing\_answers}, are described in Chapter~\ref{chap:platform}. The
+second of them exists because of a risk raised during the engine audit
+(Chapter~\ref{chap:scoring-engine}), before the bridge was written: an
+incomplete assessment reaching the engine would trip a bare \texttt{KeyError}
+on the first missing answer rather than be reported as incomplete, and would
+have surfaced as an opaque \texttt{500}. Closing that gap ahead of time is what
+lets the scoring endpoint return every missing answer at once as a \texttt{422},
+keeping genuine user errors out of the server-error range. This is a small
 illustration of a pattern that recurs through the project, a risk identified
 on paper is treated as a requirement on the next component, not as an
 afterthought once it fails in practice.
@@ -232,10 +225,9 @@ aggregation, a foundational-gate cap, and a consistency-penalty deduction
 (Chapter~\ref{chap:scoring-engine}). Each step is unit-tested independently
 (Section~\ref{sec:validation-test-profiles}), but a single assessment
 profile that exercises several of them in sequence makes the cumulative
-effect concrete in a way that isolated tests do not. This is also,
-deliberately, the numeric proof that the engine audit found missing
-(finding H1, Chapter~\ref{chap:scoring-engine}), the correction added the
-test, this section reports what it actually shows. This is a separate
+effect concrete in a way that isolated tests do not. It is also the numeric
+illustration that finding H1 (Chapter~\ref{chap:scoring-engine}) showed to be
+missing. This is a separate
 illustration from the canonical gate-then-penalty example already
 introduced in Chapter~\ref{chap:scoring-engine}, raw 72, gated 65, final 60,
 it exercises the same fixed pipeline order on a different combination of
@@ -295,28 +287,30 @@ choice, the guardrails put in place because the model cannot be trusted
 unsupervised, how often those guardrails have to intervene, and a
 qualitative read of what the output is actually worth.
 
-\subsection{Model selection: qwen2.5:3b versus a 7B model}
+\subsection{Model selection: qwen2.5:3b versus qwen2.5:7b}
 \label{sec:validation-model-selection}
 
-Ollama is configured to run \texttt{qwen2.5:3b} by default rather than a
-larger model such as \texttt{mistral:7b-instruct}, one of the candidates
+Ollama is configured to run \texttt{qwen2.5:3b} by default rather than
+\texttt{qwen2.5:7b}, the same model one size up and one of the candidates
 originally listed for this role (\texttt{referential.yaml},
 \texttt{ai\_module\_scope}). The reasoning is documented in the architecture
-log, inference runs on CPU inside the demo VM, where a 7B model's latency
-made the recommendations endpoint impractical, multi-minute responses
-observed informally rather than through a controlled benchmark, while
-\texttt{qwen2.5:3b} keeps generation to approximately one minute, the only
-model of the candidate set with an actually measured generation time. This
+log, inference runs on CPU inside the demo VM, where the 7B model's latency
+made the recommendations endpoint impractical, multi-minute responses timed
+directly rather than through a controlled benchmark, while
+\texttt{qwen2.\allowbreak 5:\allowbreak 3b} keeps generation to approximately one minute on the same
+machine. Comparing two sizes of one family isolates the variable that actually
+mattered, since architecture, tokeniser and instruction tuning are held constant
+and only the parameter count changes; these two are also the only models ever run
+on the project's hardware, the three remaining candidates having never been
+installed. This
 is defensible because the task given to the model is constrained rather
 than open-ended, it summarises and enriches recommendations that the
 referential already supplies for a handful of weak best practices, it does
 not reason freely over the whole framework.
 
 Even at roughly a minute, blocking the dashboard on generation was not
-acceptable, which is why recommendations are fetched asynchronously and
-cached in memory per assessment, the dashboard renders immediately and the
-narrative fills in once ready, fetched once and reused across navigation
-rather than regenerated on every visit (Chapter~\ref{chap:platform}). The model
+acceptable, which is why recommendations are generated asynchronously and
+cached per assessment (Chapter~\ref{chap:platform}). The model
 choice and this caching decision address the same constraint from two
 directions, one lowers the cost of a generation, the other lowers how often a
 generation has to happen at all.
@@ -375,22 +369,19 @@ every request would be technically safe but practically equivalent to not
 having an AI layer at all. This frequency was not tracked systematically
 during development, no instrumentation logged how often the endpoint
 actually returned \texttt{source="fallback"} across real or test
-invocations, so no rate can be reported here. The fallback path was
-directly observed at least once during testing, for the assessment
-discussed in Section~\ref{sec:validation-worked-example}, which returned
-the referential's static recommendations rather than an AI-generated
-narrative (Section~\ref{sec:validation-qualitative-ai}). One observed
-instance says nothing about frequency, but it does confirm the fallback
-path is exercised in practice and not merely a theoretical branch. This
-absence of a tracked rate is itself worth naming rather than papering over,
-and it points to concrete follow-up work, instrumenting the recommendations
-endpoint to log its own degradation rate would turn this qualitative
-observation into a measurable one. Once a network misconfiguration between
-the demo VM and the host running Ollama was diagnosed and corrected, a
-successful AI-generated response was also obtained on the same profile,
-confirming that both the fallback path and the AI path are exercised in
-practice rather than one being purely theoretical
-(Section~\ref{sec:validation-qualitative-ai}).
+invocations, so no rate can be reported here. Two single observations are all
+there is. The fallback path was directly observed at least once during testing,
+for the assessment discussed in Section~\ref{sec:validation-worked-example},
+which returned the referential's static recommendations rather than an
+AI-generated narrative; once a network misconfiguration between the demo VM and
+the host running Ollama was diagnosed and corrected, a successful AI-generated
+response was obtained on the same profile
+(Section~\ref{sec:validation-qualitative-ai}). Two instances say nothing about
+frequency, but they do confirm that both paths are exercised in practice rather
+than one being purely theoretical. This absence of a tracked rate is itself
+worth naming rather than papering over, and it points to concrete follow-up
+work, instrumenting the recommendations endpoint to log its own degradation
+rate would turn these qualitative observations into a measurable one.
 
 \subsection{Qualitative assessment of recommendations}
 \label{sec:validation-qualitative-ai}

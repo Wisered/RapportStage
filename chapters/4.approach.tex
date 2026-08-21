@@ -46,7 +46,9 @@ instance, listed eight verifiable conditions to meet before the sprint
 could be considered closed, from every scoring engine test passing to a
 clean \texttt{git status}, and stated explicitly what was left out of scope
 for that sprint. Closing a sprint meant checking that list item by item,
-instead of declaring the work finished by feel.
+instead of declaring the work finished by feel; where the work actually
+departed from the plan, Chapter~\ref{chap:pm} records the departure rather
+than the plan.
 
 This discipline was paired with a documentation-first habit, built around
 two documents. \texttt{CLAUDE.md} is the framing document for
@@ -87,9 +89,8 @@ rather than reconstructed from memory for this report.
 
 Development followed a test-driven approach wherever the scoring logic was
 involved. The engine carries seventy tests, including golden scenarios
-that double as an executable specification of the scoring rules, and it
-went through an audit that fed corrections back into the code before the
-engine was integrated into the backend. The audit was carried out by a
+that double as an executable specification of the scoring rules, and it went through an audit that fed corrections back into the code before any backend work began. 
+The audit was carried out by a
 separate, freshly initialised review with no prior exposure to the
 implementation, which is what makes it independent, rather than by a
 third-party reviewer. Its testing strategy and the audit itself are
@@ -210,8 +211,8 @@ against a different set of answers. The engine enforces this by
 construction, and a dedicated test compares two independent computations
 on the same inputs to catch any accidental regression. Section~\ref{sec:core-idea}
 already relied on this principle to justify separating scoring from AI
-augmentation; the engine's internals and the audit that verified the
-guarantee in practice are described in Chapter~\ref{chap:scoring-engine}.
+augmentation; the engine's internals and the independent audit it went
+through are described in Chapter~\ref{chap:scoring-engine}.
 
 \subsection{P2: Local-first}
 \label{principle:local-first}
@@ -306,14 +307,12 @@ augmentation layer. These services expose considerably larger and more
 capable models than anything that can run on commodity hardware, need no
 local inference stack to install, monitor, or keep warm, and would likely
 have produced better narrative quality than what actually runs locally.
-That gap in capability is real, and Chapter~\ref{chap:platform} returns to
-it directly. It was set aside anyway because of Section~\ref{principle:local-first}:
-the NIS2 context described in Chapter~\ref{chap:context}, together with the
-sensitivity of assessment data, effectively a map of an organisation's
-cyber weaknesses, rules out sending that data to a third party regardless
-of the quality gained. The choice of local inference over a cloud API was
-therefore imposed by the platform's subject matter rather than decided
-purely on technical merit.
+That gap in capability is real, and Chapter~\ref{chap:validation} returns to
+it directly. It was set aside anyway, for the reason given in
+Section~\ref{principle:local-first}: the sensitivity of assessment data rules
+out sending it to a third party regardless of the quality gained. The choice of 
+local inference over a cloud API was therefore imposed by the platform's subject 
+matter rather than decided purely on technical merit.
 
 Once local inference was fixed, the sizing question reproduced a smaller
 version of the same trade-off. The referential lists four larger
@@ -323,13 +322,12 @@ candidates for the local model, \texttt{mistral:7b-\allowbreak instruct},
 parameter range and the fourth a mixture-of-experts model, none of which is
 what the platform actually runs: the model deployed is
 \texttt{qwen2.5:\allowbreak 3b}, smaller than any of them.
-None of the larger candidates was actually benchmarked on the
-project's hardware, only the deployed 3B model's generation time was
-measured, at roughly a minute on the CPU-bound machine used for the demo.
-The choice of the smaller model rested on the reasonable expectation that a
-7B model would be slower still on the same hardware rather than on a
-measured comparison, and \texttt{CLAUDE.md} itself defers that formal
-benchmark to a later sprint. The resulting quality loss was judged
+It was chosen over \texttt{qwen2.5:\allowbreak 7b}, the same model one size up,
+on generation times measured on the project's own hardware; comparing two sizes
+of one family holds everything but the parameter count constant, and
+Chapter~\ref{chap:validation} reports the figures and the limits of that
+comparison. A systematic benchmark across all four candidates was never run, and
+\texttt{CLAUDE.md} itself defers it to a later sprint. The resulting quality loss was judged
 acceptable because the AI's task stays narrow, summarising and enriching a
 fixed set of referential recommendations for a short list of weak best
 practices, rather than
