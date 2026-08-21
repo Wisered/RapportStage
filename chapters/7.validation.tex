@@ -27,7 +27,7 @@ The first layer tests the scoring engine in isolation, as a pure Python
 package with no I/O. The second layer tests the FastAPI backend that wraps
 it, exercising HTTP endpoints against a real (in-memory) database. The third
 layer is a targeted cross-check of the single seam between the two, the
-translation from stored, raw answers to the engine's input format.  Table~\ref{tab:validation-testing-layers} and Figure~\ref{fig:validation-pipeline}, both in Appendix~\ref{app:tables} and Appendix~\ref{app:figures} respectively, give the scope and the location of each layer.
+translation from stored, raw answers to the engine's input format. Table~\ref{tab:validation-testing-layers} and Figure~\ref{fig:validation-pipeline}, both in Appendix~\ref{app:tables} and Appendix~\ref{app:figures} respectively, give the scope and the location of each layer.
 
 
 The engine suite grew from 64 tests at the point of the independent audit
@@ -66,7 +66,7 @@ terms in Section~\ref{sec:validation-ai-evaluation}.
 Beyond the determinism check, the engine suite is organised around a small
 number of named scenarios chosen to exercise specific parts of the scoring
 pipeline described in Chapter~\ref{chap:scoring-engine}, particularly the parts most likely to hide
-a subtle error, ordering, thresholds, and edge conditions.  Table~\ref{tab:validation-test-profiles} in Appendix~\ref{app:tables} lists them one by one, with what each locks down.
+a subtle error, ordering, thresholds, and edge conditions. Table~\ref{tab:validation-test-profiles} in Appendix~\ref{app:tables} lists them one by one, with what each locks down.
 
 
 

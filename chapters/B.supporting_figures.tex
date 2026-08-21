@@ -4,8 +4,6 @@
 This appendix collects the diagrams and the code excerpt that illustrate, without carrying,
 the arguments made in the body of the report.
 
-% ---- coller ici fig. 2.1, puis fig. 5.2, puis listing 5.1 ----
-
 \begin{figure}[ht!]
   \centering
   \begin{tikzpicture}[
@@ -46,9 +44,6 @@ it contains (source: referential.yaml, derived from \cite{enisa_crisis_mgmt_2024
 % -- Emplacement figure : diagramme de modules / couches
 \begin{figure}[htbp]
   \centering
-  % Requiert dans le préambule :
-  %   \usepackage{tikz}
-  %   \usetikzlibrary{positioning, arrows.meta, fit}
   \begin{tikzpicture}[
       >={Latex[length=2mm]},
       font=\small,
@@ -87,9 +82,7 @@ it contains (source: referential.yaml, derived from \cite{enisa_crisis_mgmt_2024
   \label{fig:se-modules}
 \end{figure}
 
-% Extrait de app/scoring/engine.py (imports et docstring omis pour la place ;
-% deux appels reformates sur deux lignes pour tenir dans la largeur de page).
-% Le style de listing est celui de la classe tnreport (rien a definir).
+
 \begin{lstlisting}[language=Python,caption={The top-level \texttt{score\_assessment} routine} ,label={lst:se-engine}]
 def score_assessment(
     assessment: AssessmentInput,
@@ -138,8 +131,6 @@ def score_assessment(
 \end{lstlisting}
 
 \clearpage
-
-% ---- coller ici fig. 6.1, puis fig. 6.3, puis fig. 6.4 ----
 
 \begin{figure}[ht!]
   \centering

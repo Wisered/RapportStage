@@ -1,57 +1,5 @@
-% =====================================================================
-%  The Scoring Engine: Methodology and Implementation
-%  PFE — Arthur Saunier — TELECOM Nancy / Wavestone Luxembourg
-%  >>> Version adaptee a la classe « tnreport » de TELECOM Nancy <<<
-%
-%  ---------------------------------------------------------------------
-%  1) PREAMBULE : RIEN A AJOUTER.
-%  ---------------------------------------------------------------------
-%  La classe tnreport charge deja tout ce que ce chapitre utilise :
-%  booktabs, tikz + \usetikzlibrary{positioning, arrows.meta, fit},
-%  listings (avec son \lstset), xcolor, cleveref et hyperref. Le chapitre
-%  compile tel quel, sans toucher au preambule. (cleveref est disponible :
-%  \cref fonctionne si tu veux, mais la prose utilise \ref.)
-%
-%  ---------------------------------------------------------------------
-%  2) INSERER LE CHAPITRE : sauver ce fichier sous chapters/scoring_engine.tex,
-%     puis, a l'endroit voulu dans Rapport_Stage.tex (entre deux chapitres,
-%     avant la Conclusion) :
-%         \input{chapters/scoring_engine}
-%     (ou coller directement le corps ci-dessous). Il apparaitra
-%     automatiquement dans la table des matieres, la liste des figures /
-%     tableaux et le \lstlistoflistings de la classe.
-%
-%  ---------------------------------------------------------------------
-%  3) LABELS D'AUTRES CHAPITRES REFERENCES ICI (a faire correspondre aux
-%     tiens, sinon les renvois resteront « undefined ») :
-%  ---------------------------------------------------------------------
-%    chap:method    -> ton chapitre « Methodological Approach »
-%    chap:platform  -> ton chapitre « Platform Architecture »
-%    chap:pm        -> ton chapitre « Project Management »
-%
-%  NB : le listing de 5.3 est ta vraie fonction engine.py (imports et
-%  docstring omis pour la place). Labels internes : sec:se-*, fig:se-*,
-%  tab:se-*, lst:se-*.
-% =====================================================================
-
 \chapter{The Scoring Engine: Methodology and Implementation}
 \label{chap:scoring-engine}
-
-% ---------------------------------------------------------------------
-%  CHAPEAU DU CHAPITRE (~½ page)
-%  Objectif : poser LE problème d'ingénierie avant toute solution.
-%  Fil directeur à faire ressortir :
-%    « Comment transformer une auto-évaluation déclarative et subjective
-%      de maturité de gestion de crise cyber en un score qu'un consultant
-%      peut défendre, chiffre par chiffre, devant un client — c.-à-d.
-%      déterministe, auditable et résistant au gaming ? »
-%  Points à couvrir :
-%    - pourquoi une moyenne pondérée naïve échoue : opaque, manipulable,
-%      non reproductible ;
-%    - énoncer les 2 propriétés non négociables : AUDITABILITÉ + ANTI-DÉCLARATIF ;
-%    - annoncer que chaque mécanisme du moteur répond à un mode de défaillance ;
-%    - annoncer le plan des 5 sections.
-% ---------------------------------------------------------------------
 
 The two preceding chapters established \emph{what} this project set out to
 build---a self-assessment platform for cyber crisis management maturity, grounded
@@ -99,28 +47,8 @@ Section~\ref{sec:se-reflection} steps back to weigh the model's limits and the
 choices I would defend or revisit.
 
 
-% =====================================================================
 \section{The scoring specification}
 \label{sec:se-spec}
-% ---------------------------------------------------------------------
-%  RÔLE : le « cahier des charges » du moteur. Section analyse du besoin.
-%  Critères tuteur servis : choix justifiés (dérivation besoin -> spec).
-%
-%  À couvrir :
-%   - De la douleur métier à la spécification : partir du besoin consulting
-%     (défendre un chiffre devant le client, empêcher l'auto-diagnostic
-%     complaisant) et EN DÉRIVER les exigences formelles (ne pas présenter
-%     la spec comme donnée).
-%   - Objets du domaine : 4 phases (Preparedness / Response / Recovery / ...),
-%     16 best practices, 48 questions (3 par BP), échelle de maturité,
-%     types de preuve, paires de cohérence, règles N/A.
-%   - Le référentiel 1.1.0 comme SOURCE DE VÉRITÉ UNIQUE.
-%   - Le contrat de sortie : PAS un score mais un AssessmentResult
-%     (gates_applied, penalties_applied, cap_applied/question,
-%      capped_question_ids, N/A) -> pose l'exigence d'auditabilité.
-%   - Exigences dérivées : déterminisme, reproductibilité, pilotage par le
-%     référentiel, anti-gaming (chacune sera « payée » en 5.2 / 5.3).
-% ---------------------------------------------------------------------
 
 \subsection{From a consulting need to a specification}
 
@@ -207,37 +135,8 @@ Sections~\ref{sec:se-pipeline} and \ref{sec:se-architecture} show how the pipeli
 and the code deliver each one.
 
 
-% =====================================================================
 \section{The fixed-order pipeline}
 \label{sec:se-pipeline}
-% ---------------------------------------------------------------------
-%  RÔLE : cœur intellectuel du chapitre. Loger ici « problématique +
-%  solution intelligente ». Présenter le calcul comme un pipeline en
-%  ORDRE FIXE, chaque étape = réponse à un mode de défaillance.
-%
-%  Étapes (ordre fixe) :
-%    1. Agrégation de la maturité brute par question.
-%    2. Caps de preuve / question  -> anti-déclaratif (niveau 4 sans preuve
-%       formelle plafonné à 1 ; caps monotones no_formal_evidence->1 ...
-%       real_incident->4).
-%    3. Agrégation au niveau BP.
-%    4. Gates : un BP foundational sous son seuil plafonne la phase/le global.
-%       Règle « le cap le plus strict gagne » entre gates multiples.
-%    5. Pénalités de cohérence : paires de BP appariés divergeant de > 2
-%       niveaux -> sanction forfaitaire (DIFFÉRENCIATEUR MÉTHODOLOGIQUE, ta
-%       contribution originale).
-%    6. Normalisation des phases à 25 % (évite que Preparedness (9 BP)
-%       écrase Response/Recovery (2 BP)).
-%    7. Finalisation -> mapping vers le niveau global.
-%
-%  À mettre en valeur (signaux « ingénieur ») :
-%    - POURQUOI l'ordre est fixe : ordre gate -> pénalité justifié par
-%      l'exemple chiffré (60 vs 65, cf. CLAUDE.md §6.1). Reprendre tel quel.
-%    - Neutralité du N/A : exclu du numérateur ET du dénominateur (pas un 0).
-%
-%  RECOMMANDÉ : (a) schéma du pipeline en figure ; (b) exemple numérique
-%  déroulé de bout en bout dans un tableau.
-% ---------------------------------------------------------------------
 
 The engine computes a score in a fixed sequence of stages, shown in
 Figure~\ref{fig:se-pipeline}. The order is itself part of the design, and this
@@ -344,9 +243,6 @@ not an average of them.
 % -- Emplacement figure : schéma du pipeline en ordre fixe
 \begin{figure}[htbp]
   \centering
-  % Requiert dans le préambule :
-  %   \usepackage{tikz}
-  %   \usetikzlibrary{positioning, arrows.meta}
   \begin{tikzpicture}[
       >={Latex[length=2mm]},
       node distance=6.5mm,
@@ -387,29 +283,8 @@ not an average of them.
 \end{figure}
 
 
-% =====================================================================
 \section{Architecture of the engine}
 \label{sec:se-architecture}
-% ---------------------------------------------------------------------
-%  RÔLE : traduction de la spec en code défendable. Section conception.
-%  Critères tuteur : choix justifiés (architecture), qualité d'ingénierie.
-%
-%  À couvrir :
-%   - Les 5 principes inviolables (P1–P5), surtout :
-%       P1 : moteur pur, synchrone, sans I/O ni hasard -> déterminisme ;
-%       P4 : référentiel = source de vérité unique, un seul loader.
-%   - Décomposition en modules : referential_loader, evidence, na_rules,
-%     aggregation, finalization, engine + models/ (referential = contrat,
-%     inputs = brut utilisateur, outputs = trace d'audit). Une fonction pure
-%     et courte par étape -> le code se lit comme la spec de 5.2.
-%   - Design défensif : immutabilité (frozen=True, extra="forbid"),
-%     validation croisée au chargement (3 questions/BP, contiguïté 0->100
-%     des niveaux, foundational_cannot_be_na), bornes garanties par
-%     construction ET par filet Pydantic (Field(ge=0, le=100)).
-%   - Anticipation de l'intégration (pont vers le Ch6, \cref{chap:platform}) :
-%     moteur agnostique de la DB, traduction DB->moteur isolée dans un seul
-%     « bridge », score recalculé à la volée et jamais stocké (P1).
-% ---------------------------------------------------------------------
 
 \subsection{Two principles, expressed in code}
 
@@ -473,29 +348,8 @@ what lets the engine remain the pure, testable core that the next section puts u
 scrutiny.
 
 
-% =====================================================================
 \section{Testing strategy and audit}
 \label{sec:se-testing}
-% ---------------------------------------------------------------------
-%  RÔLE : LA section la plus payante pour le tuteur.
-%  Critères tuteur : problèmes rencontrés + résolution méthodique, recul
-%  critique, validation southbound & northbound, gestion des risques.
-%
-%  À couvrir :
-%   - Stratégie de test : tests par étage, scénarios « golden » comme spec
-%     exécutable, test_determinism (verrouille P1), balayage paramétré des
-%     bornes [0,100], cas d'erreur du loader.
-%   - L'audit indépendant (16,5/20) et ses 2 angles morts, présentés comme
-%     des PROBLÈMES RENCONTRÉS :
-%       H1 : la branche des pénalités de cohérence (ton différenciateur)
-%            n'était couverte par AUCUN test ;
-%       H2 : penalty_percent_of_global_score appliqué comme points absolus,
-%            le nom contredisait le code ;
-%       + champs décoratifs (global_weight, foundational_can_be_na).
-%   - La boucle de correction (CHANGELOG) : filet de sécurité AVANT refactor,
-%     +3 tests (64->67), renommage -> penalty_points, décision tranchée
-%     (points absolus assumés), bump du référentiel -> 1.1.0, 70 tests au total.
-% ---------------------------------------------------------------------
 
 \subsection{The test suite}
 
@@ -583,26 +437,8 @@ rather than provable, is the subject of the next section.
 \end{table}
 
 
-% =====================================================================
 \section{Critical reflection}
 \label{sec:se-reflection}
-% ---------------------------------------------------------------------
-%  RÔLE : recul critique explicite (prépare le Ch9, \cref{chap:pm}).
-%
-%  À couvrir :
-%   - Limites assumées + défenses :
-%       * seuils « magiques » (min 40, caps 60/60/65/70, gap max 2,
-%         pénalité 5) -> paramètres experts Wavestone, versionnés ;
-%         idéalement esquisser une analyse de sensibilité ;
-%       * pénalité fondée sur la maturité EFFECTIVE (post-cap) -> volontaire :
-%         on mesure le démontrable, pas le déclaré ;
-%       * normalisation 25 % comme constante structurelle ;
-%       * arrondi bancaire aux frontières de niveau.
-%   - Ce que je referais autrement -> transition vers le Ch9.
-%   - Positionnement : déterminisme + auditabilité rendent l'étage IA (Ch6)
-%     SÛR (l'IA ne voit que AssessmentResult + référentiel, jamais de PII
-%     ni de justifications N/A).
-% ---------------------------------------------------------------------
 
 \subsection{Defensible, not provable}
 
